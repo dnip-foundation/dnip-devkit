@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { merge } from 'ts-deepmerge';
-import type { Pkg, Config } from './interfaces/common.interface.js';
+import type { Pkg, Config, DeepPartial } from './interfaces/common.interface.js';
 import type { Protocol } from './interfaces/declarated.interface.js';
 
 export class ConfigAdapter<C extends Config = Config> {
@@ -9,7 +9,8 @@ export class ConfigAdapter<C extends Config = Config> {
   constructor(
     pkg: Pkg,
     protocol: Protocol,
-    config: C,
+    appConfig: C,
+    config?: DeepPartial<C>,
   ) {
     const defaultConfig: Config = {
       node: {
@@ -40,7 +41,8 @@ export class ConfigAdapter<C extends Config = Config> {
     this.values = merge.withOptions(
       { mergeArrays: false },
       defaultConfig,
-      config,
+      appConfig,
+      config ?? {},
     ) as C;
   }
 }

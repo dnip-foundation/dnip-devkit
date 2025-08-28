@@ -13,6 +13,7 @@ import type {
   Span,
   Implemented,
   Pkg,
+  DeepPartial,
 } from './index.js';
 import { Declarated, Implementation } from './index.js';
 import { ConfigAdapter } from './config.js';
@@ -25,12 +26,13 @@ export abstract class Runner<
   D extends Declarated.Protocol = Declarated.Protocol,
   I extends Implemented.Protocol = Implemented.Protocol,
 > {
-  private readonly pkg: Pkg;
   private readonly protocol: D;
-  private readonly schema: JSONSchemaType<D>;
   private readonly rootdir: string;
+  private readonly pkg: Pkg;
+  private readonly schema: JSONSchemaType<D>;
   private readonly ext: string;
   private readonly include: string[];
+  private readonly defaultConfig?: DeepPartial<C>;
   private implementation: Implementation = () => ({});
 
   protected dependencies: string[] = [];
@@ -39,17 +41,19 @@ export abstract class Runner<
   protected config!: C;
 
   constructor({
+    rootdir,
     pkg,
     schema,
-    rootdir,
     ext,
     include,
+    config,
   }: {
+    rootdir: string,
     pkg: Pkg,
     schema: JSONSchemaType<D>,
-    rootdir: string,
     ext: string,
     include: string[],
+    config?: DeepPartial<C>,
   }) {
     const protocolPath = join(rootdir, 'protocol.json');
     try {
@@ -59,11 +63,12 @@ export abstract class Runner<
       process.exit(1);
     }
 
+    this.rootdir = rootdir;
     this.pkg = pkg;
     this.schema = schema;
-    this.rootdir = rootdir;
     this.ext = ext;
     this.include = include;
+    this.defaultConfig = config;
   }
 
   protected createContext(
@@ -143,6 +148,7 @@ export abstract class Runner<
         this.pkg,
         this.protocol,
         config as C,
+        this.defaultConfig,
       ).values;
 
       this.implementation = implementation as Implementation;
