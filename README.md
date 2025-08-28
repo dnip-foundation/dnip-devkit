@@ -1,3 +1,5 @@
-<img align="right" alt="DNIP logo" width="160" src="https://raw.githubusercontent.com/dnip-foundation/dnip-devkit/master/assets/logo.jpg">
+<p>
+  <img align="right" alt="DNIP logo" width="160" src="https://raw.githubusercontent.com/dnip-foundation/dnip-devkit/master/assets/logo.jpg">
+</p>
 
-# Distributed Node Interface Protocol (devkit)
+<h1 style="padding-top: 140px;">Distributed Node Interface Protocol (devkit)</h1>
