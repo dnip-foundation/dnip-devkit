@@ -26,15 +26,16 @@ export abstract class Runner<
   D extends Declarated.Protocol = Declarated.Protocol,
   I extends Implemented.Protocol = Implemented.Protocol,
 > {
-  private readonly protocol: D;
-  private readonly rootdir: string;
-  private readonly pkg: Pkg;
-  private readonly schema: JSONSchemaType<D>;
-  private readonly ext: string;
-  private readonly include: string[];
-  private readonly defaultConfig?: DeepPartial<C>;
-  private implementation: Implementation = () => ({});
+  readonly #protocol: D;
+  readonly #rootdir: string;
+  readonly #pkg: Pkg;
+  readonly #schema: JSONSchemaType<D> = Declarated.Protocol;
+  readonly #ext: string;
+  readonly #include: string[];
+  readonly #defaultConfig?: DeepPartial<C>;
+  #implementation: Implementation = () => ({});
 
+  protected readonly protocol?: D;
   protected dependencies: string[] = [];
   protected extensions: GenericObject = {};
   protected implemented: I = {} as I;
@@ -50,25 +51,35 @@ export abstract class Runner<
   }: {
     rootdir: string,
     pkg: Pkg,
-    schema: JSONSchemaType<D>,
+    schema?: JSONSchemaType<D>,
     ext: string,
     include: string[],
     config?: DeepPartial<C>,
   }) {
     const protocolPath = join(rootdir, 'protocol.json');
     try {
-      this.protocol = JSON.parse(readFileSync(protocolPath, 'utf-8'));
+      this.#protocol = JSON.parse(readFileSync(protocolPath, 'utf-8'));
     } catch {
       console.error(`cannot access to "protocol.json" path: "${protocolPath}"`);
       process.exit(1);
     }
 
-    this.rootdir = rootdir;
-    this.pkg = pkg;
-    this.schema = schema;
-    this.ext = ext;
-    this.include = include;
-    this.defaultConfig = config;
+    this.#rootdir = rootdir;
+    this.#pkg = pkg;
+    if (schema != null) {
+      this.#schema = schema;
+      this.protocol = structuredClone(this.#protocol);
+    }
+    this.#ext = ext;
+    this.#include = include;
+    this.#defaultConfig = config;
+
+    const protocolValidate = ajv.compile(this.#schema);
+
+    if (!protocolValidate(this.#protocol)) {
+      console.error("invalid declaration in 'protocol.json'", protocolValidate.errors);
+      process.exit(1);
+    }
   }
 
   protected createContext(
@@ -95,6 +106,7 @@ export abstract class Runner<
   }
 
   protected abstract createBroker(): Promise<Broker>;
+  protected abstract implement(broker: Broker): Promise<void>;
   protected abstract createServices(broker: Broker): Promise<void>;
   protected abstract loadHTTP(broker: Broker): Promise<void>;
   protected abstract loadCRON(broker: Broker): Promise<void>;
@@ -117,12 +129,13 @@ export abstract class Runner<
   }
 
   async start() {
-    await this.defaultStart();
+    await this.#defaultStart();
   }
 
-  private async defaultStart() {
-    await this.loadConfiguration();
+  async #defaultStart() {
+    await this.#loadConfiguration();
     const broker = await this.createBroker();
+    await this.#implement(broker);
     await this.implement(broker);
     await Promise.all([
       this.loadHTTP(broker),
@@ -133,50 +146,43 @@ export abstract class Runner<
     await broker.start();
   }
 
-  private async loadConfiguration() {
+  async #loadConfiguration() {
     try {
       // required
       const [
         { default: config },
         { default: implementation },
       ] = await Promise.all<{ default: unknown }>([
-        import(join(this.rootdir, `config.${this.ext}`)),
-        import(join(this.rootdir, `protocol.${this.ext}`)),
+        import(join(this.#rootdir, `config.${this.#ext}`)),
+        import(join(this.#rootdir, `protocol.${this.#ext}`)),
       ]);
 
       this.config = new ConfigAdapter<C>(
-        this.pkg,
-        this.protocol,
+        this.#pkg,
+        this.#protocol,
         config as C,
-        this.defaultConfig,
+        this.#defaultConfig,
       ).values;
 
-      this.implementation = implementation as Implementation;
-
-      // optional
-      this.extensions = (await Promise.allSettled(
-        this.include.map((name) => import(join(this.rootdir, `${name}.${this.ext}`))),
-      )).reduce<GenericObject>((acc, extension: GenericObject, index) => {
-        const name = this.include[index];
-        acc[name] = extension.value?.default;
-        return acc;
-      }, {});
-
-      const protocolValidate = ajv.compile(this.schema);
-
-      if (!protocolValidate(this.protocol)) {
-        console.error("invalid declaration in 'protocol.json'", protocolValidate.errors);
-        process.exit(1);
-      }
+      this.#implementation = implementation as Implementation;
 
       if (typeof implementation !== 'function') {
         console.error("invalid implementation in 'protocol.ts'");
         process.exit(1);
       }
 
-      if (this.protocol.services != null) {
+      // optional
+      this.extensions = (await Promise.allSettled(
+        this.#include.map((name) => import(join(this.#rootdir, `${name}.${this.#ext}`))),
+      )).reduce<GenericObject>((acc, extension: GenericObject, index) => {
+        const name = this.#include[index];
+        acc[name] = extension.value?.default;
+        return acc;
+      }, {});
+
+      if (this.#protocol.services != null) {
         this.dependencies = Object
-          .entries(this.protocol.services)
+          .entries(this.#protocol.services)
           .map(([serviceName, s]) => `${serviceName}.v${s.version}`);
       }
     } catch (err) {
@@ -185,12 +191,12 @@ export abstract class Runner<
     }
   }
 
-  private async implement(broker: Broker) {
-    const implementation = this.implementation(broker.adapters);
+  async #implement(broker: Broker) {
+    const implementation = this.#implementation(broker.adapters);
 
-    if (this.protocol.services != null) {
+    if (this.#protocol.services != null) {
       this.implemented.services = Object
-        .entries(this.protocol.services)
+        .entries(this.#protocol.services)
         .reduce<Implemented.Services>((serviceAcc, [serviceName, service]) => {
           const actions = Object
             .entries(service.actions)
@@ -231,7 +237,7 @@ export abstract class Runner<
         }, {});
     }
 
-    if (this.protocol.gateway != null) {
+    if (this.#protocol.gateway != null) {
       const applyMiddleware = (path?: string, alias?: string) => (mw: string) => {
         const middleware = this.get<Implemented.HTTPMiddleware>(implementation, mw);
         if (middleware == null) {
@@ -241,7 +247,7 @@ export abstract class Runner<
         return middleware;
       };
 
-      const routes = this.protocol.gateway.routes.map<Implemented.HTTPRoute>((route) => {
+      const routes = this.#protocol.gateway.routes.map<Implemented.HTTPRoute>((route) => {
         const { middlewares, path, aliases } = route;
         const result: Implemented.HTTPRoute = { path, aliases: {} };
 
@@ -267,16 +273,16 @@ export abstract class Runner<
       });
 
       this.implemented.gateway = {
-        middlewares: this.protocol.gateway.middlewares?.map(applyMiddleware()) ?? [],
+        middlewares: this.#protocol.gateway.middlewares?.map(applyMiddleware()) ?? [],
         routes,
       };
     }
 
-    if (this.protocol.cron != null) {
+    if (this.#protocol.cron != null) {
       this.implemented.cron = {
-        timezone: this.protocol.cron.timezone,
-        disabled: this.protocol.cron.disabled,
-        jobs: this.protocol.cron.jobs.map<Implemented.CronJob>((job) => {
+        timezone: this.#protocol.cron.timezone,
+        disabled: this.#protocol.cron.disabled,
+        jobs: this.#protocol.cron.jobs.map<Implemented.CronJob>((job) => {
           const execute = this.get<Implemented.Execute>(implementation, job.execute);
           if (execute == null) {
             console.error(`cannot retrieve implementation by path '${job.execute}' in cron '${job.name}.execute'`);
@@ -307,7 +313,7 @@ export abstract class Runner<
     }
   }
 
-  private get<T>(
+  protected get<T>(
     object: GenericObject,
     path: string,
     defaultValue = undefined,
