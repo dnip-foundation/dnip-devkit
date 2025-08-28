@@ -5,6 +5,5 @@
 <br>
 <br>
 <br>
-<br>
 
 # Distributed Node Interface Protocol (devkit)
