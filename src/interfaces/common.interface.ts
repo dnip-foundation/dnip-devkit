@@ -3,6 +3,11 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GenericObject = { [name: string]: any };
 
+export interface Pkg {
+  name: string;
+  version: string;
+}
+
 interface LoggerMeta {
   xFlowId?: string | null;
   xSystemCode?: string;
@@ -88,15 +93,11 @@ export interface Config {
   probe: number;
   domain: GenericObject;
 
+  gateway?: DeepPartial<{
+    ip?: string;
+    port?: number;
+  }>
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: any;
-}
-
-export interface ConfigExternal extends DeepPartial<Config> {
-  http?: DeepPartial<{
-    server?: {
-      ip?: string;
-      port?: number;
-    };
-  }>
 }

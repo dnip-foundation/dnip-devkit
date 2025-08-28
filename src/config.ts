@@ -1,15 +1,17 @@
 import fs from 'node:fs';
-import type { GenericObject, Config } from './interfaces/common.interface.js';
+import { merge } from 'ts-deepmerge';
+import type { Pkg, Config } from './interfaces/common.interface.js';
 import type { Protocol } from './interfaces/declarated.interface.js';
 
-export class ConfigAdapter {
-  readonly values: Config;
+export class ConfigAdapter<C extends Config = Config> {
+  readonly values: C;
 
   constructor(
-    pkg: GenericObject,
+    pkg: Pkg,
     protocol: Protocol,
+    config: C,
   ) {
-    this.values = {
+    const defaultConfig: Config = {
       node: {
         namespace: 'local',
         name: pkg.name,
@@ -23,18 +25,22 @@ export class ConfigAdapter {
 
     if (protocol.gateway != null) {
       const port = process.env.PORT != null ? parseInt(process.env.PORT, 10) : 8080;
-      this.values.http = {
-        server: {
-          ip: '0.0.0.0',
-          port,
-        },
+      defaultConfig.gateway = {
+        ip: '0.0.0.0',
+        port,
       };
     }
 
     try {
-      this.values.node.namespace = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/namespace').toString().trim();
+      defaultConfig.node.namespace = fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/namespace').toString().trim();
     } catch {
       //
     }
+
+    this.values = merge.withOptions(
+      { mergeArrays: false },
+      defaultConfig,
+      config,
+    ) as C;
   }
 }

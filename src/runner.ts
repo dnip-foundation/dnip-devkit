@@ -3,7 +3,6 @@
 import { join } from 'node:path';
 import Ajv, { JSONSchemaType } from 'ajv';
 import { readFileSync } from 'node:fs';
-import { merge } from 'ts-deepmerge';
 import type {
   Config,
   GenericObject,
@@ -13,6 +12,7 @@ import type {
   Service,
   Span,
   Implemented,
+  Pkg,
 } from './index.js';
 import { Declarated, Implementation } from './index.js';
 import { ConfigAdapter } from './config.js';
@@ -21,45 +21,49 @@ import * as Errors from './errors/index.js';
 const ajv = new Ajv.default({ allErrors: true });
 
 export abstract class Runner<
-  D extends Declarated.Protocol,
-  I extends Implemented.Protocol
+  C extends Config = Config,
+  D extends Declarated.Protocol = Declarated.Protocol,
+  I extends Implemented.Protocol = Implemented.Protocol,
 > {
+  private readonly pkg: Pkg;
   private readonly protocol: D;
   private readonly schema: JSONSchemaType<D>;
   private readonly rootdir: string;
   private readonly ext: string;
   private readonly include: string[];
-  private readonly configAdapter: ConfigAdapter;
   private implementation: Implementation = () => ({});
 
   protected dependencies: string[] = [];
   protected extensions: GenericObject = {};
-  protected config: Config;
   protected implemented: I = {} as I;
+  protected config!: C;
 
   constructor({
+    pkg,
     schema,
     rootdir,
     ext,
     include,
-    configAdapter,
   }: {
+    pkg: Pkg,
     schema: JSONSchemaType<D>,
     rootdir: string,
     ext: string,
     include: string[],
-    configAdapter: ConfigAdapter,
   }) {
+    const protocolPath = join(rootdir, 'protocol.json');
+    try {
+      this.protocol = JSON.parse(readFileSync(protocolPath, 'utf-8'));
+    } catch {
+      console.error(`cannot access to "protocol.json" path: "${protocolPath}"`);
+      process.exit(1);
+    }
+
+    this.pkg = pkg;
     this.schema = schema;
     this.rootdir = rootdir;
     this.ext = ext;
     this.include = include;
-    this.configAdapter = configAdapter;
-
-    const protocolPath = join(this.rootdir, 'protocol.json');
-    this.protocol = JSON.parse(readFileSync(protocolPath, 'utf-8'));
-
-    this.config = this.configAdapter.values;
   }
 
   protected createContext(
@@ -135,11 +139,11 @@ export abstract class Runner<
         import(join(this.rootdir, `protocol.${this.ext}`)),
       ]);
 
-      this.config = merge.withOptions(
-        { mergeArrays: false },
-        this.configAdapter.values,
-        config as Config,
-      ) as Config;
+      this.config = new ConfigAdapter<C>(
+        this.pkg,
+        this.protocol,
+        config as C,
+      ).values;
 
       this.implementation = implementation as Implementation;
 
