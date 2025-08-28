@@ -1,6 +1,6 @@
 {
   "name": "dnip-devkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "volodymyr.sentiurin@gmail.com",
   "description": "Distributed Node Interface Protocol (devkit)",
   "license": "Apache-2.0",
@@ -19,7 +19,6 @@
   ],
   "scripts": {
     "build": "rm -rf dist; tsc --project tsconfig.build.json",
-    "prepublishOnly": "npm run lint; npm run build",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
