@@ -6,4 +6,6 @@
 <br>
 <br>
 
-# Distributed Node Interface Protocol (devkit)
+# Distributed Node Interface Protocol
+
+It's a devkit (docs in progress)
