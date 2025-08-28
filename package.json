@@ -1,6 +1,6 @@
 {
   "name": "dnip-devkit",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "author": "volodymyr.sentiurin@gmail.com",
   "description": "Distributed Node Interface Protocol (devkit)",
   "license": "Apache-2.0",
@@ -24,7 +24,8 @@
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "lint": "tsc; eslint . --ext .ts",
-    "lint:fix": "tsc; eslint . --ext .ts --fix"
+    "lint:fix": "tsc; eslint . --ext .ts --fix",
+    "sandbox": "node --loader ts-node/esm ./src/sandbox/index.ts"
   },
   "dependencies": {
     "ajv": "^8.17.1",

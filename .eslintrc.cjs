@@ -63,5 +63,6 @@ module.exports = {
     '*.cjs',
     '*.mjs',
     'jest.config.js',
+    'src/sandbox/'
   ],
 };
