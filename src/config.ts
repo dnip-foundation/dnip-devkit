@@ -41,8 +41,8 @@ export class ConfigAdapter<C extends Config = Config> {
     this.values = merge.withOptions(
       { mergeArrays: false },
       defaultConfig,
-      appConfig,
       config ?? {},
+      appConfig,
     ) as C;
   }
 }
