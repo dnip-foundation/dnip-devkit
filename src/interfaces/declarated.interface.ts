@@ -4,7 +4,7 @@ import { JSONSchemaType } from 'ajv';
 export interface Service {
   version: number;
   transports: ('amqp')[];
-  actions: Record<string, {
+  actions: Record<string, string | {
     input: string;
     output: string;
     execute: string;
@@ -21,13 +21,20 @@ export const Service: JSONSchemaType<Service> = {
     actions: {
       type: 'object',
       additionalProperties: {
-        type: 'object',
-        properties: {
-          input: { type: 'string' },
-          output: { type: 'string' },
-          execute: { type: 'string' },
-        },
-        required: ['input', 'output', 'execute'],
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'object',
+            properties: {
+              input: { type: 'string' },
+              output: { type: 'string' },
+              execute: { type: 'string' },
+            },
+            required: ['input', 'output', 'execute'],
+          },
+        ],
         additionalProperties: false,
       },
       required: [],

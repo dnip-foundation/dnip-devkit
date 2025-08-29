@@ -63,3 +63,4 @@ typings/
 dist
 publish.sh
 src/sandbox/
+.npmrc

@@ -11,11 +11,10 @@ import type {
   Context,
   Service,
   Span,
-  Implemented,
   Pkg,
   DeepPartial,
 } from './index.js';
-import { Declarated, Implementation } from './index.js';
+import { Declarated, Implemented, Implementation } from './index.js';
 import { ConfigAdapter } from './config.js';
 import * as Errors from './errors/index.js';
 
@@ -203,6 +202,26 @@ export abstract class Runner<
           const actions = Object
             .entries(service.actions)
             .reduce<Implemented.ServiceActions>((actionAcc, [actionName, action]) => {
+              if (typeof action === 'string') {
+                const fullAction = this.get<Implemented.ServiceAction>(implementation, action);
+                if (fullAction == null) {
+                  console.error(`cannot retrieve implementation by path '${action}' in service '${serviceName}.v${service.version}.${actionName}'`);
+                  process.exit(1);
+                }
+                const validate = ajv.compile(Implemented.ServiceAction);
+                if (!validate(fullAction)) {
+                  console.error(
+                    `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
+                    validate.errors,
+                  );
+                  process.exit(1);
+                }
+
+                // eslint-disable-next-line no-param-reassign
+                actionAcc[actionName] = fullAction;
+                return actionAcc;
+              }
+
               const input = this.get<Implemented.Input>(implementation, action.input);
               if (input == null) {
                 console.error(`cannot retrieve implementation by path '${action.input}' in service '${serviceName}.v${service.version}.${actionName}.input'`);
@@ -227,6 +246,7 @@ export abstract class Runner<
                 output,
                 execute,
               };
+
               return actionAcc;
             }, {});
 
