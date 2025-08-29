@@ -106,6 +106,7 @@ export abstract class Runner<
   }
 
   protected abstract createBroker(): Promise<Broker>;
+  protected abstract beforeImplement(broker: Broker): Promise<void>;
   protected abstract implement(broker: Broker): Promise<void>;
   protected abstract createServices(broker: Broker): Promise<void>;
   protected abstract loadHTTP(broker: Broker): Promise<void>;
@@ -135,6 +136,7 @@ export abstract class Runner<
   async #defaultStart() {
     await this.#loadConfiguration();
     const broker = await this.createBroker();
+    await this.beforeImplement(broker);
     await this.#implement(broker);
     await this.implement(broker);
     await Promise.all([
