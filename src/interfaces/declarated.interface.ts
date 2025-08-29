@@ -35,7 +35,6 @@ export const Service: JSONSchemaType<Service> = {
             required: ['input', 'output', 'execute'],
           },
         ],
-        additionalProperties: false,
       },
       required: [],
     },
