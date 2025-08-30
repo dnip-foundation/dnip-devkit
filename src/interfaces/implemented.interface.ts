@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { JSONSchemaType } from 'ajv';
 import type { Params, Context, Transports } from './common.interface.js';
 
-type HTTPMiddlewareNext = (err: unknown) => void
+type HTTPMiddlewareNext = (err?: unknown) => void
 // eslint-disable-next-line max-len
 export type HTTPMiddleware = (req: IncomingMessage, res: ServerResponse, next: HTTPMiddlewareNext) => void
 export type Execute = (params: Params, context: Context) => void | Promise<void>;
@@ -62,6 +62,7 @@ export const Services = {
 export type HTTPRouteAliases = (
   Record<string, [...HTTPMiddleware[], string]>
   | Record<string, [...HTTPMiddleware[], ServiceAction]>
+  | Record<string, HTTPMiddleware[]>
 );
 
 // HTTPRoute
