@@ -300,7 +300,7 @@ export abstract class Runner<
         result.aliases = Object.entries(aliases)
           .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
             const mws = value.slice(0, value.length - 1).map(applyMiddleware(path, alias));
-            const [method] = value[value.length - 1];
+            const method = value[value.length - 1];
             const implemented = this.get<Implemented.ServiceAction>(this.implementation, method);
 
             if (implemented != null) {
