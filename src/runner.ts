@@ -37,6 +37,7 @@ export abstract class Runner<
   protected readonly protocol?: D;
   protected dependencies: string[] = [];
   protected extensions: GenericObject = {};
+  protected implementation: Record<string, GenericObject> = {};
   protected implemented: I = {} as I;
   protected config!: C;
 
@@ -211,7 +212,7 @@ export abstract class Runner<
   }
 
   async #implement(broker: Broker) {
-    const implementation = this.#implementation(broker.adapters);
+    this.implementation = this.#implementation(broker.adapters);
 
     if (this.#protocol.services != null) {
       this.implemented.services = Object
@@ -221,7 +222,7 @@ export abstract class Runner<
             .entries(service.actions)
             .reduce<Implemented.ServiceActions>((actionAcc, [actionName, action]) => {
               if (typeof action === 'string') {
-                const fullAction = this.get<Implemented.ServiceAction>(implementation, action);
+                const fullAction = this.get<Implemented.ServiceAction>(this.implementation, action);
                 if (fullAction == null) {
                   console.error(`cannot retrieve implementation by path '${action}' in service '${serviceName}.v${service.version}.${actionName}'`);
                   process.exit(1);
@@ -240,19 +241,19 @@ export abstract class Runner<
                 return actionAcc;
               }
 
-              const input = this.get<Implemented.Input>(implementation, action.input);
+              const input = this.get<Implemented.Input>(this.implementation, action.input);
               if (input == null) {
                 console.error(`cannot retrieve implementation by path '${action.input}' in service '${serviceName}.v${service.version}.${actionName}.input'`);
                 process.exit(1);
               }
 
-              const output = this.get<Implemented.Output>(implementation, action.output);
+              const output = this.get<Implemented.Output>(this.implementation, action.output);
               if (output == null) {
                 console.error(`cannot retrieve implementation by path '${action.output}' in service '${serviceName}.v${service.version}.${actionName}.output'`);
                 process.exit(1);
               }
 
-              const execute = this.get<Implemented.Execute>(implementation, action.execute);
+              const execute = this.get<Implemented.Execute>(this.implementation, action.execute);
               if (execute == null) {
                 console.error(`cannot retrieve implementation by path '${action.execute}' in service '${serviceName}.v${service.version}.${actionName}.execute'`);
                 process.exit(1);
@@ -280,7 +281,7 @@ export abstract class Runner<
 
     if (this.#protocol.gateway != null) {
       const applyMiddleware = (path?: string, alias?: string) => (mw: string) => {
-        const middleware = this.get<Implemented.HTTPMiddleware>(implementation, mw);
+        const middleware = this.get<Implemented.HTTPMiddleware>(this.implementation, mw);
         if (middleware == null) {
           console.error(`cannot retrieve implementation by path '${mw}' in gateway${path != null ? ` path: '${path}'` : ''}${alias != null ? ` alias: '${alias}'` : ''}`);
           process.exit(1);
@@ -298,13 +299,26 @@ export abstract class Runner<
 
         result.aliases = Object.entries(aliases)
           .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
-            if (Array.isArray(value)) {
-              const values = value as string[];
-              const mws = values.slice(0, values.length - 1).map(applyMiddleware(path, alias));
-              const [method] = values.slice(values.length - 1);
-              acc[alias] = [...mws, method];
+            const mws = value.slice(0, value.length - 1).map(applyMiddleware(path, alias));
+            const [method] = value[value.length - 1];
+            const implemented = this.get<Implemented.ServiceAction>(this.implementation, method);
+
+            if (implemented != null) {
+              const validate = ajv.compile(Implemented.ServiceAction);
+              if (!validate(implemented)) {
+                const pathErr = route.path != null ? ` path: '${route.path}'` : '';
+                const aliasErr = alias != null ? ` alias: '${alias}'` : '';
+                console.error(
+                  `invalid implementation in 'protocol.ts' for '${method}' in gateway${pathErr}${aliasErr}`,
+                  JSON.stringify(validate.errors, null, 2),
+                );
+                process.exit(1);
+              }
+
+              implemented.executePath = method;
+              acc[alias] = [...mws, implemented];
             } else {
-              acc[alias] = value;
+              acc[alias] = [...mws, method];
             }
 
             return acc;
@@ -324,7 +338,7 @@ export abstract class Runner<
         timezone: this.#protocol.cron.timezone,
         disabled: this.#protocol.cron.disabled,
         jobs: this.#protocol.cron.jobs.map<Implemented.CronJob>((job) => {
-          const execute = this.get<Implemented.Execute>(implementation, job.execute);
+          const execute = this.get<Implemented.Execute>(this.implementation, job.execute);
           if (execute == null) {
             console.error(`cannot retrieve implementation by path '${job.execute}' in cron '${job.name}.execute'`);
             process.exit(1);
@@ -339,7 +353,7 @@ export abstract class Runner<
 
           if (job.executeOnComplete != null) {
             const executeOnComplete = this
-              .get<Implemented.Execute>(implementation, job.executeOnComplete);
+              .get<Implemented.Execute>(this.implementation, job.executeOnComplete);
             if (executeOnComplete == null) {
               console.error(`cannot retrieve implementation by path '${job.executeOnComplete}' in cron '${job.name}.executeOnComplete'`);
               process.exit(1);

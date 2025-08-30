@@ -15,6 +15,7 @@ export interface ServiceAction {
   input: Input;
   output: Output;
   execute: Execute;
+  executePath?: string;
 }
 export const ServiceAction = {
   type: 'object',
@@ -22,6 +23,7 @@ export const ServiceAction = {
     input: { type: 'object' },
     output: { type: 'object' },
     execute: {},
+    executePath: { type: 'string', nullable: true },
   },
   required: ['input', 'output', 'execute'],
   additionalProperties: false,
@@ -58,8 +60,8 @@ export const Services = {
 };
 
 export type HTTPRouteAliases = (
-  Record<string, string>
-  | Record<string, [...HTTPMiddleware[], string]>
+  Record<string, [...HTTPMiddleware[], string]>
+  | Record<string, [...HTTPMiddleware[], ServiceAction]>
 );
 
 // HTTPRoute
@@ -79,10 +81,6 @@ export const HTTPRoute = {
     path: { type: 'string' },
     aliases: {
       oneOf: [
-        {
-          type: 'object',
-          additionalProperties: { type: 'string' },
-        },
         {
           type: 'object',
           additionalProperties: {

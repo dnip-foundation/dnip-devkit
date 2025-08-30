@@ -56,7 +56,7 @@ export const Services: JSONSchemaType<Services> = {
 export interface HTTPRoute {
   middlewares?: string[];
   path: string;
-  aliases: Record<string, string> | Record<string, string[]>;
+  aliases: Record<string, string[]>;
 }
 export const HTTPRoute: JSONSchemaType<HTTPRoute> = {
   type: 'object',
@@ -70,19 +70,10 @@ export const HTTPRoute: JSONSchemaType<HTTPRoute> = {
     aliases: {
       type: 'object',
       required: [],
-      oneOf: [
-        {
-          type: 'object',
-          additionalProperties: { type: 'string' },
-        },
-        {
-          type: 'object',
-          additionalProperties: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-        },
-      ],
+      additionalProperties: {
+        type: 'array',
+        items: { type: 'string' },
+      },
     },
   },
   required: ['path', 'aliases'],
