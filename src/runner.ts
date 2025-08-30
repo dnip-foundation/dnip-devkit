@@ -76,7 +76,10 @@ export abstract class Runner<
     const protocolValidate = ajv.compile(this.#schema);
 
     if (!protocolValidate(this.#protocol)) {
-      console.error("invalid declaration in 'protocol.json'", protocolValidate.errors);
+      console.error(
+        "invalid declaration in 'protocol.json'",
+        JSON.stringify(protocolValidate.errors, null, 2),
+      );
       process.exit(1);
     }
   }
@@ -227,7 +230,7 @@ export abstract class Runner<
                 if (!validate(fullAction)) {
                   console.error(
                     `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                    validate.errors,
+                    JSON.stringify(validate.errors, null, 2),
                   );
                   process.exit(1);
                 }
@@ -268,6 +271,7 @@ export abstract class Runner<
           // eslint-disable-next-line no-param-reassign
           serviceAcc[`${serviceName}.v${service.version}`] = {
             version: service.version,
+            transports: service.transports,
             actions,
           };
           return serviceAcc;

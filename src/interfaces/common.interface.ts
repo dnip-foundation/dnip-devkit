@@ -210,3 +210,5 @@ export interface Config {
 
   [name: string]: any;
 }
+
+export type Transports = ('amqp')[];

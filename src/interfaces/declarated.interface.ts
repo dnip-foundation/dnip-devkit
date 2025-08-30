@@ -1,9 +1,10 @@
-import { JSONSchemaType } from 'ajv';
+import type { JSONSchemaType } from 'ajv';
+import type { Transports } from '../index.js';
 
 // Service
 export interface Service {
   version: number;
-  transports: ('amqp')[];
+  transports: Transports;
   actions: Record<string, string | {
     input: string;
     output: string;

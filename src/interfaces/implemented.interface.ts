@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { JSONSchemaType } from 'ajv';
-import type { Params, Context } from './common.interface.js';
+import type { Params, Context, Transports } from './common.interface.js';
 
 type HTTPMiddlewareNext = (err: unknown) => void
 // eslint-disable-next-line max-len
@@ -38,6 +38,7 @@ export const ServiceActions = {
 // Services
 export interface Service {
   version: number;
+  transports: Transports;
   actions: ServiceActions;
 }
 export type Services = Record<string, Service>;
