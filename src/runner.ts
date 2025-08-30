@@ -117,6 +117,10 @@ export abstract class Runner<
       return new Errors.UnknownError('Unknown Error', { err });
     }
 
+    if (err instanceof Errors.BaseError) {
+      return err;
+    }
+
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const Instance = Errors[err.name];
@@ -126,7 +130,17 @@ export abstract class Runner<
     }
 
     const error = err as Errors.BaseError;
-    return new Instance(error.message, error.code, error.type, error.data);
+
+    if (error.code != null && error.type != null && error.data != null) {
+      return new Instance(error.message, error.code, error.type, error.data);
+    }
+    if (error.code != null && error.type != null) {
+      return new Instance(error.message, error.code, error.type);
+    }
+    if (error.code != null) {
+      return new Instance(error.message, error.code);
+    }
+    return new Instance(error.message);
   }
 
   async start() {
