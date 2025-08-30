@@ -125,7 +125,8 @@ export abstract class Runner<
       return new Errors.UnknownError(err.message, { err });
     }
 
-    return new Instance(err.message);
+    const error = err as Errors.BaseError;
+    return new Instance(error.message, error.code, error.type, error.data);
   }
 
   async start() {
