@@ -299,27 +299,33 @@ export abstract class Runner<
 
         result.aliases = Object.entries(aliases)
           .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
-            const mws = value.slice(0, value.length - 1).map(applyMiddleware(path, alias));
-            const method = value[value.length - 1];
-            const implemented = this.get<Implemented.ServiceAction>(this.implementation, method);
-
-            if (implemented != null) {
-              const validate = ajv.compile(Implemented.ServiceAction);
-              if (!validate(implemented)) {
-                const pathErr = route.path != null ? ` path: '${route.path}'` : '';
-                const aliasErr = alias != null ? ` alias: '${alias}'` : '';
-                console.error(
-                  `invalid implementation in 'protocol.ts' for '${method}' in gateway${pathErr}${aliasErr}`,
-                  JSON.stringify(validate.errors, null, 2),
+            acc[alias] = value.map((handler) => {
+              if (typeof handler === 'string') {
+                const implemented = this.get<Implemented.ServiceAction>(
+                  this.implementation,
+                  handler,
                 );
-                process.exit(1);
+
+                if (implemented != null) {
+                  const validate = ajv.compile(Implemented.ServiceAction);
+                  if (!validate(implemented)) {
+                    const pathErr = route.path != null ? ` path: '${route.path}'` : '';
+                    const aliasErr = alias != null ? ` alias: '${alias}'` : '';
+                    console.error(
+                      `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
+                      JSON.stringify(validate.errors, null, 2),
+                    );
+                    process.exit(1);
+                  }
+
+                  return implemented;
+                }
+
+                return handler;
               }
 
-              implemented.executePath = method;
-              acc[alias] = [...mws, implemented];
-            } else {
-              acc[alias] = [...mws, method];
-            }
+              return applyMiddleware(path, alias)(handler);
+            });
 
             return acc;
           }, {});

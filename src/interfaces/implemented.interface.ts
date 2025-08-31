@@ -59,11 +59,8 @@ export const Services = {
   required: [],
 };
 
-export type HTTPRouteAliases = (
-  Record<string, [...HTTPMiddleware[], string]>
-  | Record<string, [...HTTPMiddleware[], ServiceAction]>
-  | Record<string, HTTPMiddleware[]>
-);
+export type HTTPRouteHandler = string | HTTPMiddleware | ServiceAction;
+export type HTTPRouteAliases = Record<string, HTTPRouteHandler[]>;
 
 // HTTPRoute
 export interface HTTPRoute {
