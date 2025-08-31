@@ -9,13 +9,13 @@ export type Execute = (params: Params, context: Context) => void | Promise<void>
 
 export type Input = JSONSchemaType<unknown>;
 export type Output = JSONSchemaType<unknown>;
+export type Headers = JSONSchemaType<unknown>;
 
 // ServiceAction
 export interface ServiceAction {
   input: Input;
   output: Output;
   execute: Execute;
-  executePath?: string;
 }
 export const ServiceAction = {
   type: 'object',
@@ -23,7 +23,6 @@ export const ServiceAction = {
     input: { type: 'object' },
     output: { type: 'object' },
     execute: {},
-    executePath: { type: 'string', nullable: true },
   },
   required: ['input', 'output', 'execute'],
   additionalProperties: false,
@@ -59,7 +58,24 @@ export const Services = {
   required: [],
 };
 
-export type HTTPRouteHandler = string | HTTPMiddleware | ServiceAction;
+export interface HTTPServiceAction extends ServiceAction {
+  executePath?: string;
+  headers?: Headers;
+}
+export const HTTPServiceAction = {
+  type: 'object',
+  properties: {
+    headers: {},
+    input: { type: 'object' },
+    output: { type: 'object' },
+    execute: {},
+    executePath: { type: 'string', nullable: true },
+  },
+  required: ['input', 'output', 'execute'],
+  additionalProperties: false,
+};
+
+export type HTTPRouteHandler = string | HTTPMiddleware | HTTPServiceAction;
 export type HTTPRouteAliases = Record<string, HTTPRouteHandler[]>;
 
 // HTTPRoute

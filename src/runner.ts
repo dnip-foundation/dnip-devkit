@@ -297,12 +297,16 @@ export abstract class Runner<
           result.middlewares = middlewares.map(applyMiddleware(path));
         }
 
-        result.aliases = Object.entries(aliases)
+        const beforeMiddlewares: Record<string, Implemented.HTTPMiddleware[]> = {};
+
+        const implementedAliases = Object.entries(aliases)
           .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
+            beforeMiddlewares[alias] = [];
+
             acc[alias] = value.map((handler) => {
               const implemented = this.get<
                 Implemented.HTTPMiddleware |
-                Implemented.ServiceAction
+                Implemented.HTTPServiceAction
               >(
                 this.implementation,
                 handler,
@@ -311,15 +315,42 @@ export abstract class Runner<
               if (implemented != null) {
                 if (typeof implemented !== 'function') { // not middleware
                   // validate as handler (direct call)
-                  const validate = ajv.compile(Implemented.ServiceAction);
+                  const validate = ajv.compile(Implemented.HTTPServiceAction);
+                  const pathErr = route.path != null ? ` path: '${route.path}'` : '';
+                  const aliasErr = alias != null ? ` alias: '${alias}'` : '';
+
                   if (!validate(implemented)) {
-                    const pathErr = route.path != null ? ` path: '${route.path}'` : '';
-                    const aliasErr = alias != null ? ` alias: '${alias}'` : '';
                     console.error(
                       `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
                       JSON.stringify(validate.errors, null, 2),
                     );
                     process.exit(1);
+                  }
+
+                  if (implemented.headers != null) {
+                    /**
+                     * TODO - better headers schema validation
+                     */
+                    if (typeof implemented.headers !== 'object') {
+                      console.error(
+                        `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
+                        'headers should be JSONSchema',
+                      );
+                      process.exit(1);
+                    }
+
+                    const headersMiddleware: Implemented.HTTPMiddleware = (req, _, next) => {
+                      const validateHeaders = ajv.compile(implemented.headers!);
+                      if (!validateHeaders(req.headers)) {
+                        next(new Errors.BadRequestError('headers validation failed', {
+                          errors: validateHeaders.errors,
+                        }));
+                        return;
+                      }
+                      next();
+                    };
+
+                    beforeMiddlewares[alias].push(headersMiddleware);
                   }
 
                   implemented.executePath = handler;
@@ -334,6 +365,11 @@ export abstract class Runner<
             return acc;
           }, {});
 
+        Object.entries(beforeMiddlewares).forEach(([alias, value]) => {
+          implementedAliases[alias] = [...value, ...implementedAliases[alias]];
+        });
+
+        result.aliases = implementedAliases;
         return result;
       });
 
@@ -383,6 +419,10 @@ export abstract class Runner<
     path: string,
     defaultValue = undefined,
   ): T | undefined {
+    if (object == null || path == null) {
+      return defaultValue;
+    }
+
     const keys = Array.isArray(path)
       ? path
       : path.replace(/\[(\d+)\]/g, '.$1').split('.');
