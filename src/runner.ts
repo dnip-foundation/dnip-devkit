@@ -321,6 +321,8 @@ export abstract class Runner<
                     );
                     process.exit(1);
                   }
+
+                  implemented.executePath = handler;
                 }
 
                 return implemented; // middleware
