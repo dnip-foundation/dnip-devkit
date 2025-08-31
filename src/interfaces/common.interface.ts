@@ -206,6 +206,11 @@ export interface Config {
   gateway?: DeepPartial<{
     ip?: string;
     port?: number;
+    requestTimeout?: number;
+    cors?: {
+      methods?: string[];
+      origin?: string;
+    };
   }>
 
   [name: string]: any;
