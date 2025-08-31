@@ -19,6 +19,7 @@ import { ConfigAdapter } from './config.js';
 import * as Errors from './errors/index.js';
 
 const ajv = new Ajv.default({ allErrors: true });
+const aliasRegex = /^\w+\.v([0-9]+)\.\w+$/;
 
 export abstract class Runner<
   C extends Config = Config,
@@ -302,6 +303,8 @@ export abstract class Runner<
         const implementedAliases = Object.entries(aliases)
           .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
             beforeMiddlewares[alias] = [];
+            const pathErr = route.path != null ? ` path: '${route.path}'` : '';
+            const aliasErr = alias != null ? ` alias: '${alias}'` : '';
 
             acc[alias] = value.map((handler) => {
               const implemented = this.get<
@@ -316,8 +319,6 @@ export abstract class Runner<
                 if (typeof implemented !== 'function') { // not middleware
                   // validate as handler (direct call)
                   const validate = ajv.compile(Implemented.HTTPServiceAction);
-                  const pathErr = route.path != null ? ` path: '${route.path}'` : '';
-                  const aliasErr = alias != null ? ` alias: '${alias}'` : '';
 
                   if (!validate(implemented)) {
                     console.error(
@@ -357,6 +358,11 @@ export abstract class Runner<
                 }
 
                 return implemented; // middleware
+              }
+
+              if (!aliasRegex.test(handler)) {
+                console.error(`cannot retrieve implementation for '${handler}' in gateway${pathErr}${aliasErr}`);
+                process.exit(1);
               }
 
               return handler; // alias to action
