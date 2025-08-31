@@ -12,20 +12,20 @@ export interface Pkg {
 }
 
 interface LoggerMeta {
-  xFlowId?: string | null;
-  xSystemCode?: string;
-  xUsername?: string;
-
   spanId?: string;
   traceId?: string;
 
   data?: GenericObject;
   operation?: string;
+
+  [key: string]: any;
 }
 
+type LoggerError = unknown | Error | GenericObject | string;
+
 export interface LoggerInstance {
-  fatal(msg: string, meta?: LoggerMeta): void;
-  error(msg: string, meta?: LoggerMeta): void;
+  fatal(msg: string, meta?: LoggerMeta | LoggerError): void;
+  error(msg: string, meta?: LoggerMeta | LoggerError): void;
   warn(msg: string, meta?: LoggerMeta): void;
   info(msg: string, meta?: LoggerMeta): void;
   debug(msg: string, meta?: LoggerMeta): void;
