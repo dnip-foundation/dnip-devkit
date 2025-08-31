@@ -300,13 +300,17 @@ export abstract class Runner<
         result.aliases = Object.entries(aliases)
           .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
             acc[alias] = value.map((handler) => {
-              if (typeof handler === 'string') {
-                const implemented = this.get<Implemented.ServiceAction>(
-                  this.implementation,
-                  handler,
-                );
+              const implemented = this.get<
+                Implemented.HTTPMiddleware |
+                Implemented.ServiceAction
+              >(
+                this.implementation,
+                handler,
+              );
 
-                if (implemented != null) {
+              if (implemented != null) {
+                if (typeof implemented !== 'function') { // not middleware
+                  // validate as handler (direct call)
                   const validate = ajv.compile(Implemented.ServiceAction);
                   if (!validate(implemented)) {
                     const pathErr = route.path != null ? ` path: '${route.path}'` : '';
@@ -317,14 +321,12 @@ export abstract class Runner<
                     );
                     process.exit(1);
                   }
-
-                  return implemented;
                 }
 
-                return handler;
+                return implemented; // middleware
               }
 
-              return applyMiddleware(path, alias)(handler);
+              return handler; // alias to action
             });
 
             return acc;
