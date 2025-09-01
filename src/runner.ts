@@ -238,7 +238,19 @@ export abstract class Runner<
                 }
 
                 // eslint-disable-next-line no-param-reassign
-                actionAcc[actionName] = fullAction;
+                actionAcc[actionName] = {
+                  input: ajv.compile(fullAction.input),
+                  output: ajv.compile(fullAction.output),
+                  execute: fullAction.execute,
+                };
+
+                if (!Implemented.validate.ServiceAction(actionAcc[actionName])) {
+                  console.error(
+                    `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
+                    JSON.stringify(Implemented.validate.ServiceAction.errors, null, 2),
+                  );
+                  process.exit(1);
+                }
                 return actionAcc;
               }
 
