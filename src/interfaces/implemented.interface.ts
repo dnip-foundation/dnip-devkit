@@ -1,15 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { JSONSchemaType } from 'ajv';
+import type { ValidateFunction } from 'ajv';
 import type { Params, Context, Transports } from './common.interface.js';
+import ajv from '../ajv.js';
 
 type HTTPMiddlewareNext = (err?: unknown) => void
 // eslint-disable-next-line max-len
 export type HTTPMiddleware = (req: IncomingMessage, res: ServerResponse, next: HTTPMiddlewareNext) => void
 export type Execute = (params: Params, context: Context) => void | Promise<void>;
 
-export type Input = JSONSchemaType<unknown>;
-export type Output = JSONSchemaType<unknown>;
-export type Headers = JSONSchemaType<unknown>;
+export type Input = ValidateFunction<unknown>;
+export type Output = ValidateFunction<unknown>;
+export type Headers = ValidateFunction<unknown>;
 
 // ServiceAction
 export interface ServiceAction {
@@ -17,12 +18,12 @@ export interface ServiceAction {
   output: Output;
   execute: Execute;
 }
-export const ServiceAction = {
+export const ServiceActionSchema = {
   type: 'object',
   properties: {
-    input: { type: 'object' },
-    output: { type: 'object' },
-    execute: {},
+    input: { isFunction: true },
+    output: { isFunction: true },
+    execute: { isFunction: true },
   },
   required: ['input', 'output', 'execute'],
   additionalProperties: false,
@@ -30,9 +31,9 @@ export const ServiceAction = {
 
 // ServiceActions
 export type ServiceActions = Record<string, ServiceAction>;
-export const ServiceActions = {
+export const ServiceActionsSchema = {
   type: 'object',
-  additionalProperties: ServiceAction,
+  additionalProperties: ServiceActionSchema,
   required: [],
 };
 
@@ -43,35 +44,36 @@ export interface Service {
   actions: ServiceActions;
 }
 export type Services = Record<string, Service>;
-export const Service = {
+export const ServiceSchema = {
   type: 'object',
   properties: {
     version: { type: 'number' },
-    actions: ServiceActions,
+    actions: ServiceActionsSchema,
   },
   required: ['version', 'actions'],
   additionalProperties: false,
 };
 export const Services = {
   type: 'object',
-  additionalProperties: Service,
+  additionalProperties: ServiceSchema,
   required: [],
 };
 
+// HTTPServiceAction
 export interface HTTPServiceAction extends ServiceAction {
   executePath?: string;
   headers?: Headers;
 }
-export const HTTPServiceAction = {
+export const HTTPServiceActionSchema = {
   type: 'object',
   properties: {
-    headers: {},
-    input: { type: 'object' },
-    output: { type: 'object' },
-    execute: {},
-    executePath: { type: 'string', nullable: true },
+    headers: { isFunctionOrNull: true },
+    input: { isFunction: true },
+    output: { isFunction: true },
+    execute: { isFunction: true },
+    executePath: { type: 'string' },
   },
-  required: ['input', 'output', 'execute'],
+  required: ['input', 'output', 'execute', 'executePath'],
   additionalProperties: false,
 };
 
@@ -84,7 +86,7 @@ export interface HTTPRoute {
   path: string;
   aliases: HTTPRouteAliases;
 }
-export const HTTPRoute = {
+export const HTTPRouteSchema = {
   type: 'object',
   properties: {
     middlewares: {
@@ -117,7 +119,7 @@ export interface CronJob {
   executeOnComplete?: Execute;
   disabled?: boolean;
 }
-export const CronJob = {
+export const CronJobSchema = {
   type: 'object',
   properties: {
     name: { type: 'string' },
@@ -136,14 +138,14 @@ export interface Cron {
   disabled?: boolean;
   jobs: CronJob[];
 }
-export const Cron = {
+export const CronSchema = {
   type: 'object',
   properties: {
     timezone: { type: 'string', nullable: true },
     disabled: { type: 'boolean', nullable: true },
     jobs: {
       type: 'array',
-      items: CronJob,
+      items: CronJobSchema,
     },
   },
   required: ['jobs'],
@@ -159,7 +161,7 @@ export interface Protocol {
   };
   cron?: Cron;
 }
-export const Protocol = {
+export const ProtocolSchema = {
   type: 'object',
   properties: {
     services: { ...Services, nullable: true },
@@ -172,15 +174,20 @@ export const Protocol = {
         },
         routes: {
           type: 'array',
-          items: HTTPRoute,
+          items: HTTPRouteSchema,
         },
       },
       required: ['middlewares', 'routes'],
       additionalProperties: false,
       nullable: true,
     },
-    cron: { ...Cron, nullable: true },
+    cron: { ...CronSchema, nullable: true },
   },
   required: [],
   additionalProperties: false,
+};
+
+export const validate = {
+  ServiceAction: ajv.compile(ServiceActionSchema),
+  HTTPServiceAction: ajv.compile(HTTPServiceActionSchema),
 };

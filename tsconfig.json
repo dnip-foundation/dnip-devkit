@@ -7,7 +7,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "pretty": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "declaration": true,
     "types": [
       "node",
