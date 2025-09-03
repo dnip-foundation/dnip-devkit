@@ -17,7 +17,7 @@ import type {
 import { Declarated, Implemented, Implementation } from './index.js';
 import { ConfigAdapter } from './config.js';
 import * as Errors from './errors/index.js';
-import { createError } from './utils.js';
+import { get, createError } from './utils.js';
 import ajv from './ajv.js';
 
 const aliasRegex = /^\w+\.v([0-9]+)\.\w+$/;
@@ -445,21 +445,6 @@ export abstract class Runner<
     path: string,
     defaultValue = undefined,
   ): T | undefined {
-    if (object == null || path == null) {
-      return defaultValue;
-    }
-
-    const keys = Array.isArray(path)
-      ? path
-      : path.replace(/\[(\d+)\]/g, '.$1').split('.');
-
-    let result = object;
-
-    for (const key of keys) {
-      if (result == null) return defaultValue;
-      result = result[key];
-    }
-
-    return (result === undefined ? defaultValue : result) as T | undefined;
+    return get(object, path, defaultValue);
   }
 }
