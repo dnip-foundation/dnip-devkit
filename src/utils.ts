@@ -1,5 +1,10 @@
 import * as Errors from './errors/index.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isDNIPError(err: any) {
+  return typeof err === 'object' && err.dnip;
+}
+
 export function createError(err: unknown): Error {
   if (!(err instanceof Error)) {
     return new Errors.UnknownError('Unknown Error', { err });
