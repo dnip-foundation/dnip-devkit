@@ -71,7 +71,7 @@ export function createError(error: unknown): Error {
     }
     case 'UnknownError':
     default: {
-      return new Errors.UnknownError(err.message, { error: JSON.stringify(error) });
+      return new Errors.UnknownError(err.message, error);
     }
   }
 }
