@@ -5,10 +5,7 @@ export function createError(err: unknown): Error {
     return new Errors.UnknownError('Unknown Error', { err });
   }
 
-  if (
-    err instanceof Errors.BaseError
-    || (err as Errors.BaseError).dnip
-  ) {
+  if (err instanceof Errors.BaseError) {
     return err;
   }
 
