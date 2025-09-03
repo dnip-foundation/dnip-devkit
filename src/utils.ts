@@ -25,7 +25,7 @@ export function get<T>(
 }
 
 export function createError(error: unknown): Errors.BaseError {
-  if (!(error instanceof Error)) {
+  if (typeof error !== 'object') {
     return new Errors.UnknownError('Unknown Error', { error });
   }
 
