@@ -35,8 +35,6 @@ class ExtendableError extends Error {
 }
 
 export class BaseError extends ExtendableError {
-  readonly dnip = true;
-
   code: number;
   type?: string;
   data?: GenericObject;

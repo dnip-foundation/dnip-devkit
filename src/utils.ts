@@ -24,39 +24,54 @@ export function get<T>(
   return (result === undefined ? defaultValue : result) as T | undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isDNIPError(err: any, path?: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return typeof err === 'object' && path != null ? get<any>(err, path)?.dnip : err.dnip;
-}
-
-export function createError(err: unknown): Error {
-  if (!(err instanceof Error)) {
-    return new Errors.UnknownError('Unknown Error', { err });
+export function createError(error: unknown): Error {
+  if (!(error instanceof Error)) {
+    return new Errors.UnknownError('Unknown Error', { error });
   }
 
-  if (err instanceof Errors.BaseError) {
-    return err;
+  if (error instanceof Errors.BaseError) {
+    return error;
   }
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const Instance = Errors[err.name];
+  const err = error as Errors.BaseError;
 
-  if (Instance == null) {
-    return new Errors.UnknownError(err.message, { err });
+  switch (err.name) {
+    case 'BadConfigError': {
+      return new Errors.BadConfigError(err.message, err.data);
+    }
+    case 'BadRequestError': {
+      return new Errors.BadRequestError(err.message, err.data);
+    }
+    case 'BadResponseError': {
+      return new Errors.BadResponseError(err.message, err.data);
+    }
+    case 'BaseError': {
+      return new Errors.BaseError(err.message, err.code, err.type, err.data);
+    }
+    case 'BusinessError': {
+      return new Errors.BusinessError(err.message);
+    }
+    case 'DomainError': {
+      return new Errors.DomainError(err.message);
+    }
+    case 'HTTPClientError': {
+      return new Errors.HTTPClientError(err.message, err.code, err.data);
+    }
+    case 'NotFoundError': {
+      return new Errors.NotFoundError(err.message);
+    }
+    case 'ServerTemporarilyUnavailableError': {
+      return new Errors.ServerTemporarilyUnavailableError(err.message, err.data);
+    }
+    case 'ServerError': {
+      return new Errors.ServerError(err.message, err.data);
+    }
+    case 'UnauthorizedError': {
+      return new Errors.UnauthorizedError(err.message, err.data);
+    }
+    case 'UnknownError':
+    default: {
+      return new Errors.UnknownError(err.message, { error: JSON.stringify(error) });
+    }
   }
-
-  const error = err as Errors.BaseError;
-
-  if (error.code != null && error.type != null && error.data != null) {
-    return new Instance(error.message, error.code, error.type, error.data);
-  }
-  if (error.code != null && error.type != null) {
-    return new Instance(error.message, error.code, error.type);
-  }
-  if (error.code != null) {
-    return new Instance(error.message, error.code);
-  }
-  return new Instance(error.message);
 }
