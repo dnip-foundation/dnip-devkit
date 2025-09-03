@@ -197,7 +197,9 @@ export abstract class Runner<
         this.#include.map((name) => import(join(this.#rootdir, `${name}.${this.#ext}`))),
       )).reduce<GenericObject>((acc, extension: GenericObject, index) => {
         const name = this.#include[index];
-        acc[name] = extension.value?.default;
+        if (extension.value?.default != null) {
+          acc[name] = extension.value.default;
+        }
         return acc;
       }, {});
 
