@@ -1,0 +1,11 @@
+{
+  "services": {
+    "test": {
+      "version": 0,
+      "transports": [],
+      "actions": {
+        "some": "domain.some"
+      }
+    }
+  }
+}

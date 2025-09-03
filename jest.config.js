@@ -2,7 +2,7 @@ export default {
   preset: 'ts-jest/presets/default-esm',
   coverageDirectory: '<rootDir>/coverage',
   testEnvironment: 'node',
-  roots: ['<rootDir>/test'],
+  roots: ['<rootDir>/test/unit'],
   moduleFileExtensions: ['ts', 'js'],
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
@@ -14,5 +14,9 @@ export default {
   testMatch: ['**/*.spec.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-  }
+  },
+  coveragePathIgnorePatterns: [
+    'test/data/',
+    'test/suite/'
+  ],
 };

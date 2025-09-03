@@ -1,0 +1,12 @@
+{
+  "gateway": {
+    "routes": [
+      {
+        "path": "/",
+        "aliases": {
+          "GET /some": ["test.1.some"]
+        }
+      }
+    ]
+  }
+}

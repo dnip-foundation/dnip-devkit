@@ -204,7 +204,13 @@ export abstract class Runner<
       if (this.#protocol.services != null) {
         this.dependencies = Object
           .entries(this.#protocol.services)
-          .map(([serviceName, s]) => `${serviceName}.v${s.version}`);
+          .map(([serviceName, s]) => {
+            if (s.version <= 0) {
+              console.error(`invalid service version '${s.version}' in service '${serviceName}.v${s.version}'`);
+              process.exit(1);
+            }
+            return `${serviceName}.v${s.version}`;
+          });
       }
     } catch (err) {
       console.error(err);

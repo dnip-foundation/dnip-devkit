@@ -1,0 +1,16 @@
+{
+  "cron": {
+    "jobs": [
+      {
+        "name": "some",
+        "pattern": "*/15 * * * * *",
+        "execute": "domain.cron.some"
+      },
+      {
+        "name": "some2",
+        "pattern": "*/30 * * * *",
+        "execute": "domain.cron.some2"
+      }
+    ]
+  }
+}

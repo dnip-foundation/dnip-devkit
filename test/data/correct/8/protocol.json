@@ -1,0 +1,14 @@
+{
+  "gateway": {
+    "middlewares": ["mw.some"],
+    "routes": [
+      {
+        "middlewares": ["mw.headers"],
+        "path": "/",
+        "aliases": {
+          "GET /some": ["mw.jwt", "mw.some", "domain.some"]
+        }
+      }
+    ]
+  }
+}
