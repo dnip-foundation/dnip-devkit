@@ -17,6 +17,7 @@ import type {
 import { Declarated, Implemented, Implementation } from './index.js';
 import { ConfigAdapter } from './config.js';
 import * as Errors from './errors/index.js';
+import { createError } from './utils.js';
 import ajv from './ajv.js';
 
 const aliasRegex = /^\w+\.v([0-9]+)\.\w+$/;
@@ -118,34 +119,7 @@ export abstract class Runner<
   protected abstract beforeStart(broker: Broker): Promise<void>;
 
   protected createError(err: unknown): Error {
-    if (!(err instanceof Error)) {
-      return new Errors.UnknownError('Unknown Error', { err });
-    }
-
-    if (err instanceof Errors.BaseError) {
-      return err;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const Instance = Errors[err.name];
-
-    if (Instance == null) {
-      return new Errors.UnknownError(err.message, { err });
-    }
-
-    const error = err as Errors.BaseError;
-
-    if (error.code != null && error.type != null && error.data != null) {
-      return new Instance(error.message, error.code, error.type, error.data);
-    }
-    if (error.code != null && error.type != null) {
-      return new Instance(error.message, error.code, error.type);
-    }
-    if (error.code != null) {
-      return new Instance(error.message, error.code);
-    }
-    return new Instance(error.message);
+    return createError(err);
   }
 
   async start() {
