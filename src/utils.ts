@@ -24,7 +24,7 @@ export function get<T>(
   return (result === undefined ? defaultValue : result) as T | undefined;
 }
 
-export function createError(error: unknown): Error {
+export function createError(error: unknown): Errors.BaseError {
   if (!(error instanceof Error)) {
     return new Errors.UnknownError('Unknown Error', { error });
   }
