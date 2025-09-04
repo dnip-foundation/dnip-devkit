@@ -49,10 +49,10 @@ export function createError(error: unknown): Errors.BaseError {
       return new Errors.BaseError(err.message, err.code, err.type, err.data);
     }
     case 'BusinessError': {
-      return new Errors.BusinessError(err.message, err.data);
+      return new Errors.BusinessError(err.message, err.type, err.data);
     }
     case 'DomainError': {
-      return new Errors.DomainError(err.message, err.data);
+      return new Errors.DomainError(err.message, err.type, err.data);
     }
     case 'ForbiddenError': {
       return new Errors.ForbiddenError(err.message, err.type, err.data);
