@@ -54,6 +54,9 @@ export function createError(error: unknown): Errors.BaseError {
     case 'DomainError': {
       return new Errors.DomainError(err.message, err.data);
     }
+    case 'ForbiddenError': {
+      return new Errors.ForbiddenError(err.message, err.type, err.data);
+    }
     case 'HTTPClientError': {
       return new Errors.HTTPClientError(err.message, err.code, err.data);
     }
