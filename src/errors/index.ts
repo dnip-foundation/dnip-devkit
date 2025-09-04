@@ -10,3 +10,4 @@ export { BusinessError } from './business.error.js';
 export { HTTPClientError } from './http.error.js';
 export { UnauthorizedError } from './unauthorized.error.js';
 export { UnknownError } from './unknown.error.js';
+export { ValidationError } from './validation.error.js';

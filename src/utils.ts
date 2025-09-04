@@ -49,10 +49,10 @@ export function createError(error: unknown): Errors.BaseError {
       return new Errors.BaseError(err.message, err.code, err.type, err.data);
     }
     case 'BusinessError': {
-      return new Errors.BusinessError(err.message);
+      return new Errors.BusinessError(err.message, err.data);
     }
     case 'DomainError': {
-      return new Errors.DomainError(err.message);
+      return new Errors.DomainError(err.message, err.data);
     }
     case 'HTTPClientError': {
       return new Errors.HTTPClientError(err.message, err.code, err.data);
@@ -68,6 +68,9 @@ export function createError(error: unknown): Errors.BaseError {
     }
     case 'UnauthorizedError': {
       return new Errors.UnauthorizedError(err.message, err.data);
+    }
+    case 'ValidationError': {
+      return new Errors.ValidationError(err.message, err.type, err.data);
     }
     case 'UnknownError':
     default: {
