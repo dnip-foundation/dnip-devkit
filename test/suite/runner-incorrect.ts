@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { jest } from '@jest/globals';
-import ajv from '../../src/ajv.js';
 import { Runner } from '../../src/runner.js';
 
 export function incorrectTests(Instance: Runner) {

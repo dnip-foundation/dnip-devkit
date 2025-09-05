@@ -4,3 +4,4 @@ export * as Implemented from './interfaces/implemented.interface.js';
 export * as Errors from './errors/index.js';
 export { Runner } from './runner.js';
 export { get, createError } from './utils.js';
+export { ajvCache } from './ajv.js';

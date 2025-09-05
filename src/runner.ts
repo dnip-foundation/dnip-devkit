@@ -18,7 +18,7 @@ import { Declarated, Implemented, Implementation } from './index.js';
 import { ConfigAdapter } from './config.js';
 import * as Errors from './errors/index.js';
 import { get, createError } from './utils.js';
-import ajv from './ajv.js';
+import { ajvCache } from './ajv.js';
 
 const aliasRegex = /^\w+\.v([0-9]+)\.\w+$/;
 
@@ -30,7 +30,7 @@ export abstract class Runner<
   readonly #protocol: D;
   readonly #rootdir: string;
   readonly #pkg: Pkg;
-  readonly #schema: JSONSchemaType<D> = Declarated.ProtocolSchema;
+  readonly #schema: JSONSchemaType<D> = Declarated.Protocol;
   readonly #ext: string;
   readonly #include: string[];
   readonly #defaultConfig?: DeepPartial<C>;
@@ -76,12 +76,12 @@ export abstract class Runner<
     this.#include = include;
     this.#defaultConfig = config;
 
-    const protocolValidate = ajv.compile(this.#schema);
+    const validate = ajvCache.compile<D>(this.#schema);
 
-    if (!protocolValidate(this.#protocol)) {
+    if (validate != null && !validate(this.#protocol)) {
       console.error(
         "invalid declaration in 'protocol.json'",
-        JSON.stringify(protocolValidate.errors, null, 2),
+        JSON.stringify(validate.errors, null, 2),
       );
       process.exit(1);
     }
@@ -205,50 +205,62 @@ export abstract class Runner<
             .entries(service.actions)
             .reduce<Implemented.ServiceActions>((actionAcc, [actionName, action]) => {
               if (typeof action === 'string') {
-                const fullAction = this.get<Implemented.ServiceAction>(this.implementation, action);
+                const fullAction = this.get<Declarated.ServiceAction>(this.implementation, action);
                 if (fullAction == null) {
                   console.error(`cannot retrieve implementation by path '${action}' in service '${serviceName}.v${service.version}.${actionName}'`);
                   process.exit(1);
                 }
 
-                if (!Declarated.validate.ServiceAction(fullAction)) {
+                const declaratedServiceAction = ajvCache.compile(
+                  // TODO - remove any
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  Declarated.ServiceAction as JSONSchemaType<any>,
+                );
+
+                if (!declaratedServiceAction(fullAction)) {
                   console.error(
                     `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                    JSON.stringify(Declarated.validate.ServiceAction.errors, null, 2),
+                    JSON.stringify(declaratedServiceAction.errors, null, 2),
                   );
                   process.exit(1);
                 }
 
                 // eslint-disable-next-line no-param-reassign
                 actionAcc[actionName] = {
-                  input: ajv.compile(fullAction.input),
-                  output: ajv.compile(fullAction.output),
+                  input: ajvCache.compile(fullAction.input),
+                  output: ajvCache.compile(fullAction.output),
                   execute: fullAction.execute,
                 };
 
-                if (!Implemented.validate.ServiceAction(actionAcc[actionName])) {
+                const implementedServiceAction = ajvCache.compile(
+                  // TODO - remove any
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  Implemented.ServiceAction as JSONSchemaType<any>,
+                );
+
+                if (!implementedServiceAction(actionAcc[actionName])) {
                   console.error(
                     `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                    JSON.stringify(Implemented.validate.ServiceAction.errors, null, 2),
+                    JSON.stringify(implementedServiceAction.errors, null, 2),
                   );
                   process.exit(1);
                 }
                 return actionAcc;
               }
 
-              const input = this.get<Implemented.Input>(this.implementation, action.input);
+              const input = this.get<Declarated.Input>(this.implementation, action.input);
               if (input == null) {
                 console.error(`cannot retrieve implementation by path '${action.input}' in service '${serviceName}.v${service.version}.${actionName}.input'`);
                 process.exit(1);
               }
 
-              const output = this.get<Implemented.Output>(this.implementation, action.output);
+              const output = this.get<Declarated.Output>(this.implementation, action.output);
               if (output == null) {
                 console.error(`cannot retrieve implementation by path '${action.output}' in service '${serviceName}.v${service.version}.${actionName}.output'`);
                 process.exit(1);
               }
 
-              const execute = this.get<Implemented.Execute>(this.implementation, action.execute);
+              const execute = this.get<Declarated.Execute>(this.implementation, action.execute);
               if (execute == null) {
                 console.error(`cannot retrieve implementation by path '${action.execute}' in service '${serviceName}.v${service.version}.${actionName}.execute'`);
                 process.exit(1);
@@ -256,15 +268,21 @@ export abstract class Runner<
 
               // eslint-disable-next-line no-param-reassign
               actionAcc[actionName] = {
-                input: ajv.compile(input),
-                output: ajv.compile(output),
+                input: ajvCache.compile(input),
+                output: ajvCache.compile(output),
                 execute,
               };
 
-              if (!Implemented.validate.ServiceAction(actionAcc[actionName])) {
+              const implementedServiceAction = ajvCache.compile(
+                // TODO - remove any
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                Implemented.ServiceAction as JSONSchemaType<any>,
+              );
+
+              if (!implementedServiceAction(actionAcc[actionName])) {
                 console.error(
                   `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                  JSON.stringify(Implemented.validate.ServiceAction.errors, null, 2),
+                  JSON.stringify(implementedServiceAction.errors, null, 2),
                 );
                 process.exit(1);
               }
@@ -310,8 +328,8 @@ export abstract class Runner<
 
             acc[alias] = value.map((handler) => {
               const implemented = this.get<
-                Implemented.HTTPMiddleware |
-                Implemented.HTTPServiceAction
+                Declarated.HTTPMiddleware |
+                Declarated.HTTPServiceAction
               >(
                 this.implementation,
                 handler,
@@ -323,17 +341,23 @@ export abstract class Runner<
                    * validate as handler (direct call)
                    */
 
-                  if (!Declarated.validate.HTTPServiceAction(implemented)) {
+                  const declaratedHTTPServiceAction = ajvCache.compile(
+                    // TODO - remove any
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    Declarated.HTTPServiceAction as JSONSchemaType<any>,
+                  );
+
+                  if (!declaratedHTTPServiceAction(implemented)) {
                     console.error(
                       `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
-                      JSON.stringify(Declarated.validate.HTTPServiceAction.errors, null, 2),
+                      JSON.stringify(declaratedHTTPServiceAction.errors, null, 2),
                     );
                     process.exit(1);
                   }
 
                   const implementedDirectAction: Implemented.HTTPServiceAction = {
-                    input: ajv.compile(implemented.input),
-                    output: ajv.compile(implemented.output),
+                    input: ajvCache.compile(implemented.input),
+                    output: ajvCache.compile(implemented.output),
                     execute: implemented.execute,
                     executePath: handler,
                   };
@@ -350,7 +374,7 @@ export abstract class Runner<
                       process.exit(1);
                     }
 
-                    implementedDirectAction.headers = ajv.compile(implemented.headers);
+                    implementedDirectAction.headers = ajvCache.compile(implemented.headers);
                     const { headers } = implementedDirectAction;
 
                     const headersMiddleware: Implemented.HTTPMiddleware = (req, _, next) => {
@@ -366,10 +390,16 @@ export abstract class Runner<
                     beforeMiddlewares[alias].push(headersMiddleware);
                   }
 
-                  if (!Implemented.validate.HTTPServiceAction(implementedDirectAction)) {
+                  const implementedHTTPServiceAction = ajvCache.compile(
+                    // TODO - remove any
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    Implemented.HTTPServiceAction as JSONSchemaType<any>,
+                  );
+
+                  if (!implementedHTTPServiceAction(implementedDirectAction)) {
                     console.error(
                       `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
-                      JSON.stringify(Implemented.validate.HTTPServiceAction.errors, null, 2),
+                      JSON.stringify(implementedHTTPServiceAction.errors, null, 2),
                     );
                     process.exit(1);
                   }

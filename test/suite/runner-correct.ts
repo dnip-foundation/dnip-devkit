@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { jest } from '@jest/globals';
-import ajv from '../../src/ajv.js';
+import { ajvCache } from '../../src/ajv.js';
 import { Runner } from '../../src/runner.js';
 
 export function correctTests(Instance: Runner) {
@@ -45,11 +45,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.services['test.v1'].actions.some.input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.services['test.v1'].actions.some.output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 
@@ -73,11 +73,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.services['test.v1'].actions.some.input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.services['test.v1'].actions.some.output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 
@@ -122,11 +122,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][0].input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][0].output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 
@@ -157,11 +157,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][1].input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][1].output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 
@@ -195,11 +195,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][3].input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][3].output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 
@@ -233,11 +233,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][1].input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][1].output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 
@@ -273,11 +273,11 @@ export function correctTests(Instance: Runner) {
       });
 
       const inputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][3].input;
-      const inputCompile2 = ajv.compile(runner.implementation.domain.some.input);
+      const inputCompile2 = ajvCache.compile(runner.implementation.domain.some.input);
       expect(inputCompile1).toBe(inputCompile2);
 
       const outputCompile1 = runner.implemented.gateway.routes[0].aliases['GET /some'][3].output;
-      const outputCompile2 = ajv.compile(runner.implementation.domain.some.output);
+      const outputCompile2 = ajvCache.compile(runner.implementation.domain.some.output);
       expect(outputCompile1).toBe(outputCompile2);
     });
 

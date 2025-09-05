@@ -1,11 +1,15 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { type JSONSchemaType } from 'ajv';
 import type { Params, Context, Transports } from '../index.js';
-import ajv from '../ajv.js';
+
+type HTTPMiddlewareNext = (err?: unknown) => void
+// eslint-disable-next-line max-len
+export type HTTPMiddleware = (req: IncomingMessage, res: ServerResponse, next: HTTPMiddlewareNext) => void
+export type Execute = (params: Params, context: Context) => void | Promise<void>;
 
 export type Input = JSONSchemaType<unknown>;
 export type Output = JSONSchemaType<unknown>;
 export type Headers = JSONSchemaType<unknown>;
-export type Execute = (params: Params, context: Context) => void | Promise<void>;
 
 // Service
 export interface Service {
@@ -17,7 +21,7 @@ export interface Service {
     execute: string;
   }>;
 }
-export const ServiceSchema: JSONSchemaType<Service> = {
+export const Service: JSONSchemaType<Service> = {
   type: 'object',
   properties: {
     version: { type: 'number' },
@@ -56,7 +60,7 @@ export interface ServiceAction {
   output: Output;
   execute: Execute;
 }
-export const ServiceActionSchema = {
+export const ServiceAction = {
   type: 'object',
   properties: {
     input: { type: 'object' },
@@ -69,9 +73,9 @@ export const ServiceActionSchema = {
 
 // Services
 export type Services = Record<string, Service>;
-export const ServicesSchema: JSONSchemaType<Services> = {
+export const Services: JSONSchemaType<Services> = {
   type: 'object',
-  additionalProperties: ServiceSchema,
+  additionalProperties: Service,
   required: [],
 };
 
@@ -79,7 +83,7 @@ export const ServicesSchema: JSONSchemaType<Services> = {
 export interface HTTPServiceAction extends ServiceAction {
   headers?: Headers;
 }
-export const HTTPServiceActionSchema = {
+export const HTTPServiceAction = {
   type: 'object',
   properties: {
     headers: { type: 'object', nullable: true },
@@ -97,7 +101,7 @@ export interface HTTPRoute {
   path: string;
   aliases: Record<string, string[]>;
 }
-export const HTTPRouteSchema: JSONSchemaType<HTTPRoute> = {
+export const HTTPRoute: JSONSchemaType<HTTPRoute> = {
   type: 'object',
   properties: {
     middlewares: {
@@ -124,7 +128,7 @@ export interface Gateway {
   middlewares?: string[];
   routes: HTTPRoute[];
 }
-export const GatewaySchema: JSONSchemaType<Gateway> = {
+export const Gateway: JSONSchemaType<Gateway> = {
   type: 'object',
   properties: {
     middlewares: {
@@ -134,7 +138,7 @@ export const GatewaySchema: JSONSchemaType<Gateway> = {
     },
     routes: {
       type: 'array',
-      items: HTTPRouteSchema,
+      items: HTTPRoute,
     },
   },
   required: ['routes'],
@@ -149,7 +153,7 @@ export interface CronJob {
   executeOnComplete?: string;
   disabled?: boolean;
 }
-export const CronJobSchema: JSONSchemaType<CronJob> = {
+export const CronJob: JSONSchemaType<CronJob> = {
   type: 'object',
   properties: {
     name: { type: 'string' },
@@ -168,13 +172,13 @@ export interface Cron {
   jobs: CronJob[];
   disabled?: boolean;
 }
-export const CronSchema: JSONSchemaType<Cron> = {
+export const Cron: JSONSchemaType<Cron> = {
   type: 'object',
   properties: {
     timezone: { type: 'string', nullable: true },
     jobs: {
       type: 'array',
-      items: CronJobSchema,
+      items: CronJob,
     },
     disabled: { type: 'boolean', nullable: true },
   },
@@ -188,18 +192,13 @@ export interface Protocol {
   gateway?: Gateway;
   cron?: Cron;
 }
-export const ProtocolSchema: JSONSchemaType<Protocol> = {
+export const Protocol: JSONSchemaType<Protocol> = {
   type: 'object',
   properties: {
-    services: { ...ServicesSchema, nullable: true },
-    gateway: { ...GatewaySchema, nullable: true },
-    cron: { ...CronSchema, nullable: true },
+    services: { ...Services, nullable: true },
+    gateway: { ...Gateway, nullable: true },
+    cron: { ...Cron, nullable: true },
   },
   required: [],
   additionalProperties: false,
-};
-
-export const validate = {
-  ServiceAction: ajv.compile(ServiceActionSchema),
-  HTTPServiceAction: ajv.compile(HTTPServiceActionSchema),
 };

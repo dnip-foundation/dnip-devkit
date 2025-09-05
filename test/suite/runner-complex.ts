@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { jest } from '@jest/globals';
-import ajv from '../../src/ajv.js';
+import { ajvCache } from '../../src/ajv.js';
 import { Runner } from '../../src/runner.js';
 
 export function complexTests(Instance: Runner) {
@@ -143,71 +143,71 @@ export function complexTests(Instance: Runner) {
 
       {
         const inputCompile1 = runner.implemented.services['test1.v11'].actions.some1.input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.some1.input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.some1.input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.services['test1.v11'].actions.some1.output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.some1.output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.some1.output);
         expect(outputCompile1).toBe(outputCompile2);
       }
 
       {
         const inputCompile1 = runner.implemented.services['test1.v11'].actions.some2.input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.some2Input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.some2Input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.services['test1.v11'].actions.some2.output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.some2Output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.some2Output);
         expect(outputCompile1).toBe(outputCompile2);
       }
 
       {
         const inputCompile1 = runner.implemented.services['test1.v11'].actions.some3.input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.some3.input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.some3.input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.services['test1.v11'].actions.some3.output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.some3.output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.some3.output);
         expect(outputCompile1).toBe(outputCompile2);
       }
 
       {
         const inputCompile1 = runner.implemented.services['test3.v123123123'].actions.foo.input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.foo.input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.foo.input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.services['test3.v123123123'].actions.foo.output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.foo.output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.foo.output);
         expect(outputCompile1).toBe(outputCompile2);
       }
 
       {
         const inputCompile1 = runner.implemented.gateway.routes[3].aliases['GET /'][0].input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.apple.juice.input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.apple.juice.input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.gateway.routes[3].aliases['GET /'][0].output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.apple.juice.output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.apple.juice.output);
         expect(outputCompile1).toBe(outputCompile2);
       }
 
       {
         const inputCompile1 = runner.implemented.gateway.routes[3].aliases['POST /:id'][2].input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.apple.juiceCreate.input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.apple.juiceCreate.input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.gateway.routes[3].aliases['POST /:id'][2].output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.apple.juiceCreate.output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.apple.juiceCreate.output);
         expect(outputCompile1).toBe(outputCompile2);
       }
 
       {
         const inputCompile1 = runner.implemented.gateway.routes[3].aliases['PATCH /some/:id'][2].input;
-        const inputCompile2 = ajv.compile(runner.implementation.domain.apple.juiceUpdate.input);
+        const inputCompile2 = ajvCache.compile(runner.implementation.domain.apple.juiceUpdate.input);
         expect(inputCompile1).toBe(inputCompile2);
 
         const outputCompile1 = runner.implemented.gateway.routes[3].aliases['PATCH /some/:id'][2].output;
-        const outputCompile2 = ajv.compile(runner.implementation.domain.apple.juiceUpdate.output);
+        const outputCompile2 = ajvCache.compile(runner.implementation.domain.apple.juiceUpdate.output);
         expect(outputCompile1).toBe(outputCompile2);
       }
     });
