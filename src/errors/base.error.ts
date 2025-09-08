@@ -1,5 +1,5 @@
 /* eslint-disable max-classes-per-file */
-import { GenericObject } from '../interfaces/common.interface.js';
+import { GenericObject } from '../interfaces/common.js';
 
 class ExtendableError extends Error {
   constructor(message = '') {

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "protocol.json",
+
+  "definitions": {
+    "contract": { "$ref": "./contract.json" },
+
+    "execute": { "type": "string" },
+
+    "action": {
+      "type": "object",
+      "properties": {
+        "contract": { "type": "string" },
+        "execute": { "$ref": "#/definitions/execute" },
+        "middlewares": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["contract", "execute"],
+      "additionalProperties": false
+    },
+
+    "cron": {
+      "type": "object",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "timezone": {
+          "type": "string",
+          "pattern": "^([a-zA-Z_]{2,14}\/){1,2}[a-zA-Z_]{2,14}$"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "pattern": { "type": "string" },
+              "execute": { "$ref": "#/definitions/execute" },
+              "executeOnComplete": { "$ref": "#/definitions/execute" },
+              "disabled": { "type": "boolean" }
+            },
+            "required": ["name", "pattern", "execute"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["jobs"],
+      "additionalProperties": false
+    },
+
+    "gateway": {
+      "type": "object",
+      "properties": {
+        "middlewares": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "routes": {
+          "type": "object",
+          "patternProperties": {
+            "^(GET|POST|PUT|PATCH|DELETE)\\s\\/(\\/|\\w)+$": {
+              "oneOf": [
+                { "type": "string" },
+                { "$ref": "#/definitions/action" }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["routes"],
+      "additionalProperties": false
+    },
+
+    "service": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "integer", "minimum": 1 },
+        "transports": { "$ref": "./transports.json" },
+        "actions": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/action" }
+        }
+      },
+      "required": ["version", "transports", "actions"],
+      "additionalProperties": false
+    }
+  },
+
+  "type": "object",
+  "properties": {
+    "services": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/service" }
+    },
+    "gateway": { "$ref": "#/definitions/gateway" },
+    "cron": { "$ref": "#/definitions/cron" }
+  },
+  "required": [],
+  "additionalProperties": false
+}

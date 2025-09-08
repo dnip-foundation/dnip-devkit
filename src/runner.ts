@@ -1,124 +1,154 @@
-/* eslint-disable no-console */
 /* eslint-disable class-methods-use-this */
-import { join } from 'node:path';
-import { JSONSchemaType } from 'ajv';
-import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { readFile, readdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { merge } from 'ts-deepmerge';
 import type {
-  Config,
   GenericObject,
+  Config,
   Broker,
-  LoggerInstance,
   Context,
-  Service,
-  Span,
-  Pkg,
+  Project,
   DeepPartial,
-} from './index.js';
-import { Declarated, Implemented, Implementation } from './index.js';
+  Implementation,
+  Declarated,
+  Implemented,
+  Contract,
+} from './interfaces/index.js';
 import { ConfigAdapter } from './config.js';
-import * as Errors from './errors/index.js';
 import { get, createError } from './utils.js';
-import { ajvCache } from './ajv.js';
-
-const aliasRegex = /^\w+\.v([0-9]+)\.\w+$/;
+import type { JSONSchemaType, AjvInstance } from './ajv.js';
+import { ajv } from './ajv.js';
 
 export abstract class Runner<
-  C extends Config = Config,
+  CFG extends Config = Config,
   D extends Declarated.Protocol = Declarated.Protocol,
   I extends Implemented.Protocol = Implemented.Protocol,
+  B extends Broker = Broker,
 > {
-  readonly #protocol: D;
+  #protocol!: D;
   readonly #rootdir: string;
-  readonly #pkg: Pkg;
-  readonly #schema: JSONSchemaType<D> = Declarated.Protocol;
-  readonly #ext: string;
+  readonly #protocolDir: string;
+  readonly #contactsDir: string;
+  readonly #project: Project;
+  readonly #ajv: AjvInstance;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  #customSchema?: JSONSchemaType<any>;
   readonly #include: string[];
-  readonly #defaultConfig?: DeepPartial<C>;
+  readonly #defaultConfig?: DeepPartial<CFG>;
   #implementation: Implementation = () => ({});
 
-  protected readonly protocol?: D;
+  protected protocol!: D;
   protected dependencies: string[] = [];
   protected extensions: GenericObject = {};
   protected implementation: Record<string, GenericObject> = {};
   protected implemented: I = {} as I;
-  protected config!: C;
+  protected config!: CFG;
 
   constructor({
-    rootdir,
-    pkg,
+    ajv: externalAjv,
+    project,
     schema,
-    ext,
     include,
     config,
   }: {
-    rootdir: string,
-    pkg: Pkg,
-    schema?: JSONSchemaType<D>,
-    ext: string,
+    ajv: AjvInstance,
+    project: Project,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    schema?: JSONSchemaType<any>,
+    config?: DeepPartial<CFG>,
     include: string[],
-    config?: DeepPartial<C>,
   }) {
-    const protocolPath = join(rootdir, 'protocol.json');
-    try {
-      this.#protocol = JSON.parse(readFileSync(protocolPath, 'utf-8'));
-    } catch {
-      console.error(`cannot access to "protocol.json" path: "${protocolPath}"`);
-      process.exit(1);
-    }
+    this.#ajv = externalAjv;
 
-    this.#rootdir = rootdir;
-    this.#pkg = pkg;
+    this.#protocolDir = resolve(process.cwd(), project.dir.protocol);
+    this.#contactsDir = resolve(process.cwd(), project.dir.contracts);
+    this.#rootdir = resolve(fileURLToPath(import.meta.url), '../..');
+
+    this.#project = project;
     if (schema != null) {
-      this.#schema = schema;
-      this.protocol = structuredClone(this.#protocol);
+      this.#customSchema = schema;
     }
-    this.#ext = ext;
     this.#include = include;
     this.#defaultConfig = config;
+  }
 
-    const validate = ajvCache.compile<D>(this.#schema);
+  async #init() {
+    const [declaratedBuffer, contractBuffer] = await Promise.all([
+      readFile(join(this.#rootdir, 'json-schema', 'protocol.json'), 'utf-8'),
+      readFile(join(this.#rootdir, 'json-schema', 'contract.json'), 'utf-8'),
+    ]);
+    const declarated = JSON.parse(declaratedBuffer);
+    const contract = JSON.parse(contractBuffer);
 
-    if (validate != null && !validate(this.#protocol)) {
-      console.error(
+    const customSchema = this.#customSchema ?? {};
+    const protocol = merge(declarated, customSchema) as JSONSchemaType<D>;
+
+    await ajv.compileAsync<D>(protocol);
+    await ajv.compileAsync<Contract>(contract);
+
+    const files = (await readdir(this.#contactsDir)).filter((file) => file.endsWith('.json'));
+    await Promise.all(files.map((schema) => this.#ajv.compileAsync({ $ref: schema })));
+  }
+
+  async #validateProtocol() {
+    const protocolPath = join(this.#protocolDir, 'protocol.json');
+    try {
+      this.#protocol = JSON.parse(await readFile(protocolPath, 'utf-8'));
+      this.protocol = structuredClone(this.#protocol);
+    } catch {
+      this.#err(`cannot access to "protocol.json" path: "${protocolPath}"`);
+    }
+
+    const validate = ajv.getSchema('protocol.json');
+    if (!validate(this.#protocol)) {
+      this.#err(
         "invalid declaration in 'protocol.json'",
-        JSON.stringify(validate.errors, null, 2),
+        validate.errors,
       );
-      process.exit(1);
     }
   }
 
+  async #cleanup() {
+    ajv.removeSchema('protocol.json');
+    ajv.removeSchema('contract.json');
+    ajv.removeSchema('transports.json');
+    this.#protocol = undefined!;
+    this.#implementation = undefined!;
+  }
+
   protected createContext(
-    broker: Broker,
-    owner: Service,
-    span: Span | null,
+    config: GenericObject,
+    logger: Context['logger'],
+    getLogger: Context['getLogger'],
+    span: Context['span'] | null,
     meta: GenericObject = {},
   ): Context {
     return {
       logger: {
-        fatal: owner.logger.fatal,
-        error: owner.logger.error,
-        warn: owner.logger.warn,
-        info: owner.logger.info,
-        debug: owner.logger.debug,
-        trace: owner.logger.trace,
-
-        getLogger: (module, props) => broker.getLogger(module, props) as LoggerInstance,
+        fatal: logger.fatal,
+        error: logger.error,
+        warn: logger.warn,
+        info: logger.info,
+        debug: logger.debug,
+        trace: logger.trace,
       },
+      getLogger: (module, props) => getLogger(module, props),
       span,
       meta,
-      config: broker.options.$protected.config.domain,
+      config,
     };
   }
 
-  protected abstract createBroker(): Promise<Broker>;
-  protected abstract beforeImplement(broker: Broker): Promise<void>;
-  protected abstract implement(broker: Broker): Promise<void>;
-  protected abstract createServices(broker: Broker): Promise<void>;
-  protected abstract loadHTTP(broker: Broker): Promise<void>;
-  protected abstract loadCRON(broker: Broker): Promise<void>;
-  protected abstract beforeStart(broker: Broker): Promise<void>;
+  protected abstract createBroker(): Promise<B>;
+  protected abstract beforeImplement(broker: B): Promise<void>;
+  protected abstract implement(broker: B): Promise<void>;
+  protected abstract createServices(broker: B): Promise<void>;
+  protected abstract loadHTTP(broker: B): Promise<void>;
+  protected abstract loadCRON(broker: B): Promise<void>;
+  protected abstract beforeStart(broker: B): Promise<void>;
 
-  protected createError(err: unknown): Error {
+  protected createError(err: unknown) {
     return createError(err);
   }
 
@@ -127,10 +157,16 @@ export abstract class Runner<
   }
 
   async #defaultStart() {
+    await this.#init();
+    await this.#validateProtocol();
     await this.#loadConfiguration();
+
     const broker = await this.createBroker();
     await this.beforeImplement(broker);
     await this.#implement(broker);
+
+    this.#cleanup();
+
     await this.implement(broker);
     await Promise.all([
       this.loadHTTP(broker),
@@ -148,27 +184,25 @@ export abstract class Runner<
         { default: config },
         { default: implementation },
       ] = await Promise.all<{ default: unknown }>([
-        import(join(this.#rootdir, `config.${this.#ext}`)),
-        import(join(this.#rootdir, `protocol.${this.#ext}`)),
+        import(join(this.#protocolDir, `config.${this.#project.ext}`)),
+        import(join(this.#protocolDir, `protocol.${this.#project.ext}`)),
       ]);
 
-      this.config = new ConfigAdapter<C>(
-        this.#pkg,
-        this.#protocol,
-        config as C,
+      this.config = new ConfigAdapter<CFG>(
+        this.#project,
+        config as CFG,
         this.#defaultConfig,
       ).values;
 
       this.#implementation = implementation as Implementation;
 
       if (typeof implementation !== 'function') {
-        console.error("invalid implementation in 'protocol.ts'");
-        process.exit(1);
+        this.#err("invalid implementation in 'protocol.ts'");
       }
 
       // optional
       this.extensions = (await Promise.allSettled(
-        this.#include.map((name) => import(join(this.#rootdir, `${name}.${this.#ext}`))),
+        this.#include.map((name) => import(join(this.#protocolDir, `${name}.${this.#project.ext}`))),
       )).reduce<GenericObject>((acc, extension: GenericObject, index) => {
         const name = this.#include[index];
         if (extension.value?.default != null) {
@@ -180,254 +214,146 @@ export abstract class Runner<
       if (this.#protocol.services != null) {
         this.dependencies = Object
           .entries(this.#protocol.services)
-          .map(([serviceName, s]) => {
-            if (s.version <= 0) {
-              console.error(`invalid service version '${s.version}' in service '${serviceName}.v${s.version}'`);
-              process.exit(1);
-            }
-            return `${serviceName}.v${s.version}`;
-          });
+          .map(([serviceName, s]) => `${serviceName}.v${s.version}`);
       }
     } catch (err) {
-      console.error(err);
-      process.exit(1);
+      this.#err(err);
     }
   }
 
-  async #implement(broker: Broker) {
+  async #implement(broker: B) {
     this.implementation = this.#implementation(broker.adapters);
+    const validateContract = ajv.getSchema('contract.json');
 
     if (this.#protocol.services != null) {
-      this.implemented.services = Object
-        .entries(this.#protocol.services)
-        .reduce<Implemented.Services>((serviceAcc, [serviceName, service]) => {
-          const actions = Object
-            .entries(service.actions)
-            .reduce<Implemented.ServiceActions>((actionAcc, [actionName, action]) => {
-              if (typeof action === 'string') {
-                const fullAction = this.get<Declarated.ServiceAction>(this.implementation, action);
-                if (fullAction == null) {
-                  console.error(`cannot retrieve implementation by path '${action}' in service '${serviceName}.v${service.version}.${actionName}'`);
-                  process.exit(1);
-                }
+      const implementedServices: { [k: string]: Implemented.Service } = {};
 
-                const declaratedServiceAction = ajvCache.compile(
-                  // TODO - remove any
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  Declarated.ServiceAction as JSONSchemaType<any>,
-                );
+      await Promise.all(
+        Object.entries(this.#protocol.services)
+          .filter(([serviceName]) => !serviceName.startsWith('#'))
+          .map(async ([serviceName, service]) => {
+            const fullName = `${serviceName}.v${service.version}`;
+            const implementedServiceActions: { [k: string]: Implemented.Action } = {};
 
-                if (!declaratedServiceAction(fullAction)) {
-                  console.error(
-                    `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                    JSON.stringify(declaratedServiceAction.errors, null, 2),
-                  );
-                  process.exit(1);
-                }
+            await Promise.all(
+              Object.entries(service.actions)
+                .filter(([actionName]) => !actionName.startsWith('#'))
+                .map(async ([actionName, action]) => {
+                  const func = this.#ajv.getSchema<Declarated.Action>(action.contract);
+                  const contract = func.schema as JSONSchemaType<Contract>;
 
-                // eslint-disable-next-line no-param-reassign
-                actionAcc[actionName] = {
-                  input: ajvCache.compile(fullAction.input),
-                  output: ajvCache.compile(fullAction.output),
-                  execute: fullAction.execute,
-                };
+                  if (!validateContract(contract)) {
+                    this.#err(
+                      `invalid contract '${action.contract}' in service '${fullName}.${actionName}'`,
+                      validateContract.errors,
+                    );
+                  }
 
-                const implementedServiceAction = ajvCache.compile(
-                  // TODO - remove any
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  Implemented.ServiceAction as JSONSchemaType<any>,
-                );
+                  const execute = this.get<unknown>(this.implementation, action.execute);
+                  if (execute == null) {
+                    this.#err(`cannot retrieve implementation by path '${action.execute}' in service '${fullName}.${actionName}'`);
+                  }
 
-                if (!implementedServiceAction(actionAcc[actionName])) {
-                  console.error(
-                    `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                    JSON.stringify(implementedServiceAction.errors, null, 2),
-                  );
-                  process.exit(1);
-                }
-                return actionAcc;
-              }
+                  const { headers } = contract.properties;
 
-              const input = this.get<Declarated.Input>(this.implementation, action.input);
-              if (input == null) {
-                console.error(`cannot retrieve implementation by path '${action.input}' in service '${serviceName}.v${service.version}.${actionName}.input'`);
-                process.exit(1);
-              }
+                  implementedServiceActions[actionName] = {
+                    meta: contract['x-meta'] ?? {},
+                    headers: headers != null ? await this.#ajv.compileAsync({
+                      $ref: `${contract.$id!}#/properties/headers`,
+                    }) : undefined,
+                    input: await this.#ajv.compileAsync({
+                      $ref: `${contract.$id!}#/properties/input`,
+                    }),
+                    output: await this.#ajv.compileAsync({
+                      $ref: `${contract.$id!}#/properties/output`,
+                    }),
+                    execute,
+                    executePath: action.execute,
+                    middlewares: [],
+                  };
+                }),
+            );
 
-              const output = this.get<Declarated.Output>(this.implementation, action.output);
-              if (output == null) {
-                console.error(`cannot retrieve implementation by path '${action.output}' in service '${serviceName}.v${service.version}.${actionName}.output'`);
-                process.exit(1);
-              }
+            implementedServices[fullName] = {
+              version: service.version,
+              transports: service.transports,
+              actions: implementedServiceActions,
+            };
+          }),
+      );
 
-              const execute = this.get<Declarated.Execute>(this.implementation, action.execute);
-              if (execute == null) {
-                console.error(`cannot retrieve implementation by path '${action.execute}' in service '${serviceName}.v${service.version}.${actionName}.execute'`);
-                process.exit(1);
-              }
-
-              // eslint-disable-next-line no-param-reassign
-              actionAcc[actionName] = {
-                input: ajvCache.compile(input),
-                output: ajvCache.compile(output),
-                execute,
-              };
-
-              const implementedServiceAction = ajvCache.compile(
-                // TODO - remove any
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                Implemented.ServiceAction as JSONSchemaType<any>,
-              );
-
-              if (!implementedServiceAction(actionAcc[actionName])) {
-                console.error(
-                  `invalid implementation in 'protocol.ts' for '${action}' in service '${serviceName}.v${service.version}'`,
-                  JSON.stringify(implementedServiceAction.errors, null, 2),
-                );
-                process.exit(1);
-              }
-
-              return actionAcc;
-            }, {});
-
-          // eslint-disable-next-line no-param-reassign
-          serviceAcc[`${serviceName}.v${service.version}`] = {
-            version: service.version,
-            transports: service.transports,
-            actions,
-          };
-          return serviceAcc;
-        }, {});
+      this.implemented.services = implementedServices;
     }
 
     if (this.#protocol.gateway != null) {
-      const applyMiddleware = (path?: string, alias?: string) => (mw: string) => {
-        const middleware = this.get<Implemented.HTTPMiddleware>(this.implementation, mw);
+      const applyMiddleware = (route?: string) => (mw: string) => {
+        const middleware = this.get<unknown>(this.implementation, mw);
         if (middleware == null) {
-          console.error(`cannot retrieve implementation by path '${mw}' in gateway${path != null ? ` path: '${path}'` : ''}${alias != null ? ` alias: '${alias}'` : ''}`);
-          process.exit(1);
+          this.#err(`cannot retrieve implementation for middleware '${mw}'${route != null ? ` in route '${route}'` : ''}`);
         }
         return middleware;
       };
 
-      const routes = this.#protocol.gateway.routes.map<Implemented.HTTPRoute>((route) => {
-        const { middlewares, path, aliases } = route;
-        const result: Implemented.HTTPRoute = { path, aliases: {} };
+      const routes: Implemented.Gateway['routes'] = [];
 
-        if (middlewares != null) {
-          result.middlewares = middlewares.map(applyMiddleware(path));
-        }
+      await Promise.all(
+        Object.entries(this.#protocol.gateway.routes)
+          .filter(([alias]) => !alias.startsWith('#'))
+          .map(async ([alias, route]) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const [_, method, url] = alias.split(/^(GET|POST|PUT|PATCH|DELETE)\s/);
+            if (typeof route === 'string') {
+              routes.push({
+                method: method as Implemented.Method,
+                url,
+                action: route,
+              });
+              return;
+            }
 
-        const beforeMiddlewares: Record<string, Implemented.HTTPMiddleware[]> = {};
+            const func = this.#ajv.getSchema<Contract>(route.contract);
+            const contract = func.schema as JSONSchemaType<Contract>;
 
-        const implementedAliases = Object.entries(aliases)
-          .reduce<Implemented.HTTPRouteAliases>((acc, [alias, value]) => {
-            beforeMiddlewares[alias] = [];
-            const pathErr = route.path != null ? ` path: '${route.path}'` : '';
-            const aliasErr = alias != null ? ` alias: '${alias}'` : '';
-
-            acc[alias] = value.map((handler) => {
-              const implemented = this.get<
-                Declarated.HTTPMiddleware |
-                Declarated.HTTPServiceAction
-              >(
-                this.implementation,
-                handler,
+            if (!validateContract(contract)) {
+              this.#err(
+                `invalid contract '${route.contract}' in route '${alias}'`,
+                validateContract.errors,
               );
+            }
 
-              if (implemented != null) {
-                if (typeof implemented !== 'function') { // not middleware
-                  /**
-                   * validate as handler (direct call)
-                   */
+            const execute = this
+              .get<Implemented.Action>(this.implementation, route.execute);
 
-                  const declaratedHTTPServiceAction = ajvCache.compile(
-                    // TODO - remove any
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    Declarated.HTTPServiceAction as JSONSchemaType<any>,
-                  );
+            if (execute != null) { // not alias
+              const { headers } = contract.properties;
 
-                  if (!declaratedHTTPServiceAction(implemented)) {
-                    console.error(
-                      `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
-                      JSON.stringify(declaratedHTTPServiceAction.errors, null, 2),
-                    );
-                    process.exit(1);
-                  }
+              routes.push({
+                method: method as Implemented.Method,
+                url,
+                action: {
+                  meta: contract['x-meta'] ?? {},
+                  headers: headers != null ? await this.#ajv.compileAsync({
+                    $ref: `${contract.$id!}#/properties/headers`,
+                  }) : undefined,
+                  input: await this.#ajv.compileAsync({
+                    $ref: `${contract.$id!}#/properties/input`,
+                  }),
+                  output: await this.#ajv.compileAsync({
+                    $ref: `${contract.$id!}#/properties/output`,
+                  }),
+                  execute,
+                  executePath: route.execute,
+                  middlewares: route.middlewares?.map(applyMiddleware(alias)),
+                },
+              });
+              return;
+            }
 
-                  const implementedDirectAction: Implemented.HTTPServiceAction = {
-                    input: ajvCache.compile(implemented.input),
-                    output: ajvCache.compile(implemented.output),
-                    execute: implemented.execute,
-                    executePath: handler,
-                  };
-
-                  if (implemented.headers != null) {
-                    /**
-                     * TODO - better headers schema validation
-                     */
-                    if (typeof implemented.headers !== 'object') {
-                      console.error(
-                        `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
-                        'headers should be JSONSchema',
-                      );
-                      process.exit(1);
-                    }
-
-                    implementedDirectAction.headers = ajvCache.compile(implemented.headers);
-                    const { headers } = implementedDirectAction;
-
-                    const headersMiddleware: Implemented.HTTPMiddleware = (req, _, next) => {
-                      if (!headers(req.headers)) {
-                        next(new Errors.BadRequestError('headers validation failed', {
-                          errors: headers.errors,
-                        }));
-                        return;
-                      }
-                      next();
-                    };
-
-                    beforeMiddlewares[alias].push(headersMiddleware);
-                  }
-
-                  const implementedHTTPServiceAction = ajvCache.compile(
-                    // TODO - remove any
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    Implemented.HTTPServiceAction as JSONSchemaType<any>,
-                  );
-
-                  if (!implementedHTTPServiceAction(implementedDirectAction)) {
-                    console.error(
-                      `invalid implementation in 'protocol.ts' for '${handler}' in gateway${pathErr}${aliasErr}`,
-                      JSON.stringify(implementedHTTPServiceAction.errors, null, 2),
-                    );
-                    process.exit(1);
-                  }
-
-                  return implementedDirectAction;
-                }
-
-                return implemented; // middleware
-              }
-
-              if (!aliasRegex.test(handler)) {
-                console.error(`cannot retrieve implementation for '${handler}' in gateway${pathErr}${aliasErr}`);
-                process.exit(1);
-              }
-
-              return handler; // alias to action
-            });
-
-            return acc;
-          }, {});
-
-        Object.entries(beforeMiddlewares).forEach(([alias, value]) => {
-          implementedAliases[alias] = [...value, ...implementedAliases[alias]];
-        });
-
-        result.aliases = implementedAliases;
-        return result;
-      });
+            // if (!/^\w+\.v([0-9]+)\.\w+$/.test(route.execute)) { // alias regex
+            this.#err(`cannot retrieve implementation for '${route.execute}' in route '${alias}'`);
+            // }
+          }),
+      );
 
       this.implemented.gateway = {
         middlewares: this.#protocol.gateway.middlewares?.map(applyMiddleware()) ?? [],
@@ -439,14 +365,13 @@ export abstract class Runner<
       this.implemented.cron = {
         timezone: this.#protocol.cron.timezone,
         disabled: this.#protocol.cron.disabled,
-        jobs: this.#protocol.cron.jobs.map<Implemented.CronJob>((job) => {
-          const execute = this.get<Implemented.Execute>(this.implementation, job.execute);
+        jobs: this.#protocol.cron.jobs.map<Declarated.Job>((job) => {
+          const execute = this.get<unknown>(this.implementation, job.execute);
           if (execute == null) {
-            console.error(`cannot retrieve implementation by path '${job.execute}' in cron '${job.name}.execute'`);
-            process.exit(1);
+            this.#err(`cannot retrieve implementation by path '${job.execute}' in cron '${job.name}.execute'`);
           }
 
-          const result: Implemented.CronJob = {
+          const result: Implemented.Job = {
             name: job.name,
             pattern: job.pattern,
             execute,
@@ -455,10 +380,10 @@ export abstract class Runner<
 
           if (job.executeOnComplete != null) {
             const executeOnComplete = this
-              .get<Implemented.Execute>(this.implementation, job.executeOnComplete);
+              .get<unknown>(this.implementation, job.executeOnComplete[0]);
+
             if (executeOnComplete == null) {
-              console.error(`cannot retrieve implementation by path '${job.executeOnComplete}' in cron '${job.name}.executeOnComplete'`);
-              process.exit(1);
+              this.#err(`cannot retrieve implementation by path '${job.executeOnComplete}' in cron '${job.name}.executeOnComplete'`);
             }
 
             result.executeOnComplete = executeOnComplete;
@@ -476,5 +401,13 @@ export abstract class Runner<
     defaultValue = undefined,
   ): T | undefined {
     return get(object, path, defaultValue);
+  }
+
+  #err(...args: unknown[]) {
+    /* eslint-disable no-console */
+    console.log();
+    console.error(...args);
+    console.log();
+    process.exit(1);
   }
 }

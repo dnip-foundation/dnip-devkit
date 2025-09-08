@@ -1,5 +1,0 @@
-{
-  "cron": {
-    "jobs": ["domain.cron.some"]
-  }
-}

@@ -1,39 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import Ajv, { type JSONSchemaType, type ValidateFunction } from 'ajv';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { resolve, join } from 'node:path';
+import type { JSONSchemaType, ValidateFunction } from 'ajv';
+import AjvInstance from 'ajv';
 
-const ajv = new Ajv.default({ allErrors: true });
+const draft7Buffer = await readFile('./node_modules/ajv/dist/refs/json-schema-draft-07.json', 'utf-8');
+const draft7MetaSchema = JSON.parse(draft7Buffer);
 
-ajv.addKeyword({
-  keyword: 'isFunction',
-  validate: (schema: JSONSchemaType<unknown>, data: unknown) => {
-    if (!schema) return true;
-    return typeof data === 'function';
-  },
-  errors: false,
-});
-
-ajv.addKeyword({
-  keyword: 'isFunctionOrNull',
-  validate: (schema: JSONSchemaType<unknown>, data: unknown) => {
-    if (!schema) return true;
-    return data == null || typeof data === 'function';
-  },
-  errors: false,
-});
-
-// singleton
-class AjvCache {
-  private cache = new WeakMap<JSONSchemaType<unknown>, ValidateFunction>();
-
-  compile<T>(schema: JSONSchemaType<T>): ValidateFunction<T> {
-    if (this.cache.has(schema as any)) {
-      return this.cache.get(schema as any) as ValidateFunction<T>;
-    }
-    const validate = ajv.compile(schema);
-    this.cache.set(schema as any, validate);
-    return validate as ValidateFunction<T>;
+declare module 'ajv' {
+  interface Ajv {
+    getSchema<T = unknown>(keyRef: string): ValidateFunction<T>;
   }
 }
 
-export const ajvCache = new AjvCache();
-export default ajv;
+const ajv = new AjvInstance.default({
+  allErrors: true,
+  removeAdditional: true,
+  meta: false,
+  loadSchema: async (uri: string) => {
+    const root = resolve(fileURLToPath(import.meta.url), '../..');
+    const path = join(root, 'json-schema', uri);
+    const buffer = await readFile(path, 'utf-8');
+    return JSON.parse(buffer);
+  },
+});
+
+ajv.addMetaSchema(draft7MetaSchema, 'https://json-schema.org/draft-07/schema#');
+ajv.addKeyword('x-meta');
+
+type AjvInstance = AjvInstance.Ajv
+export type { JSONSchemaType, ValidateFunction, AjvInstance };
+export { ajv };

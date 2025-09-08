@@ -64,6 +64,9 @@ module.exports = {
     '*.mjs',
     'jest.config.js',
     'src/sandbox/',
-    'test/'
+    'test/',
+    'src/interfaces/declarated.ts',
+    'src/interfaces/implemented.ts',
+    'src/interfaces/contract.ts'
   ],
 };

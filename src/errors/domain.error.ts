@@ -1,4 +1,4 @@
-import { GenericObject } from '../interfaces/common.interface.js';
+import { GenericObject } from '../interfaces/common.js';
 import { BaseError } from './base.error.js';
 
 export class DomainError extends BaseError {

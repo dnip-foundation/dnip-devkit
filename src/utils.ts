@@ -1,4 +1,4 @@
-import { GenericObject } from './interfaces/common.interface.js';
+import { GenericObject } from './interfaces/common.js';
 import * as Errors from './errors/index.js';
 
 export function get<T>(
@@ -76,8 +76,9 @@ export function createError(error: unknown): Errors.BaseError {
       return new Errors.ValidationError(err.message, err.type, err.data);
     }
     case 'UnknownError':
-    default: {
       return new Errors.UnknownError(err.message, error);
+    default: {
+      return new Errors.ServerError(err.message, err.data);
     }
   }
 }
