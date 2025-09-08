@@ -29,7 +29,7 @@ export abstract class Runner<
   #protocol!: D;
   readonly #rootdir: string;
   readonly #protocolDir: string;
-  readonly #contactsDir: string;
+  readonly #contractsDir: string;
   readonly #project: Project;
   readonly #ajv: AjvInstance;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +62,7 @@ export abstract class Runner<
     this.#ajv = externalAjv;
 
     this.#protocolDir = resolve(process.cwd(), project.dir.protocol);
-    this.#contactsDir = resolve(process.cwd(), project.dir.contracts);
+    this.#contractsDir = resolve(process.cwd(), project.dir.contracts);
     this.#rootdir = resolve(fileURLToPath(import.meta.url), '../..');
 
     this.#project = project;
@@ -87,7 +87,7 @@ export abstract class Runner<
     await ajv.compileAsync<D>(protocol);
     await ajv.compileAsync<Contract>(contract);
 
-    const files = (await readdir(this.#contactsDir)).filter((file) => file.endsWith('.json'));
+    const files = (await readdir(this.#contractsDir)).filter((file) => file.endsWith('.json'));
     await Promise.all(files.map((schema) => this.#ajv.compileAsync({ $ref: schema })));
   }
 
