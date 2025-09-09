@@ -142,7 +142,6 @@ export abstract class Runner<
 
   protected abstract createBroker(): Promise<B>;
   protected abstract beforeImplement(broker: B): Promise<void>;
-  protected abstract implement(broker: B): Promise<void>;
   protected abstract createServices(broker: B): Promise<void>;
   protected abstract loadHTTP(broker: B): Promise<void>;
   protected abstract loadCRON(broker: B): Promise<void>;
@@ -167,7 +166,6 @@ export abstract class Runner<
 
     this.#cleanup();
 
-    await this.implement(broker);
     await Promise.all([
       this.loadHTTP(broker),
       this.loadCRON(broker),
