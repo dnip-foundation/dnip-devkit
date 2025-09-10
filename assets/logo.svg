@@ -19,8 +19,14 @@
     }
   </style>
 
-  <!-- внешний шестиугольник -->
-  <path class="stroke" d="M256 116 L377.24 186 L377.24 326 L256 396 L134.76 326 L134.76 186 Z"/>
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="6" dy="6" stdDeviation="6" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- внешний шестиугольник с тенью -->
+  <path class="stroke" filter="url(#shadow)" d="M256 116 L377.24 186 L377.24 326 L256 396 L134.76 326 L134.76 186 Z"/>
 
   <!-- внутренние диагонали -->
   <line class="stroke" x1="256" y1="116" x2="256" y2="396"/>
