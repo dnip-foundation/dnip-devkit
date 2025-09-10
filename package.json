@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dnip-foundation/dnip-devkit.git"
+    "url": "git+https://github.com/dnip-labs/dnip-devkit.git"
   },
   "type": "module",
   "main": "./dist/index.js",
