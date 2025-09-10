@@ -1,21 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="118 100 276 312" width="512" height="512">
   <style>
-    :root {
-      color-scheme: light dark;
-    }
     .stroke { 
-      stroke: black; 
+      stroke: white; 
       stroke-width: 24; 
       stroke-linecap: round; 
       stroke-linejoin: round; 
       fill: none; 
     }
     .dot { 
-      fill: black; 
-    }
-    @media (prefers-color-scheme: dark) {
-      .stroke { stroke: white; }
-      .dot { fill: white; }
+      fill: white; 
     }
   </style>
 
