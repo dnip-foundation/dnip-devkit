@@ -61,8 +61,8 @@ export abstract class Runner<
   }) {
     this.#ajv = externalAjv;
 
-    this.#protocolDir = resolve(process.cwd(), project.dir.protocol);
-    this.#contractsDir = resolve(process.cwd(), project.dir.contracts);
+    this.#protocolDir = resolve(process.cwd(), project.dir?.protocol ?? '');
+    this.#contractsDir = resolve(process.cwd(), project.dir?.contracts ?? 'contracts');
     this.#rootdir = resolve(fileURLToPath(import.meta.url), '../..');
 
     this.#project = project;
@@ -117,13 +117,15 @@ export abstract class Runner<
     this.#implementation = undefined!;
   }
 
-  protected createContext(
+  protected createContext<P, A>(
+    params: P,
+    adapters: A,
     config: GenericObject,
-    logger: Context['logger'],
-    getLogger: Context['getLogger'],
-    span: Context['span'] | null,
+    logger: Context<P, A>['logger'],
+    getLogger: Context<P, A>['getLogger'],
+    span: Context<P, A>['span'] | null,
     meta: GenericObject = {},
-  ): Context {
+  ): Context<P, A> {
     return {
       logger: {
         fatal: logger.fatal,
@@ -137,6 +139,8 @@ export abstract class Runner<
       span,
       meta,
       config,
+      params,
+      adapters,
     };
   }
 
@@ -231,13 +235,13 @@ export abstract class Runner<
           .filter(([serviceName]) => !serviceName.startsWith('#'))
           .map(async ([serviceName, service]) => {
             const fullName = `${serviceName}.v${service.version}`;
-            const implementedServiceActions: { [k: string]: Implemented.Action } = {};
+            const implementedServiceActions: { [k: string]: Implemented.Contract } = {};
 
             await Promise.all(
               Object.entries(service.actions)
                 .filter(([actionName]) => !actionName.startsWith('#'))
                 .map(async ([actionName, action]) => {
-                  const func = this.#ajv.getSchema<Declarated.Action>(action.contract);
+                  const func = this.#ajv.getSchema<Contract>(action.contract);
                   const contract = func.schema as JSONSchemaType<Contract>;
 
                   if (!validateContract(contract)) {
@@ -267,7 +271,6 @@ export abstract class Runner<
                     }),
                     execute,
                     executePath: action.execute,
-                    middlewares: [],
                   };
                 }),
             );
@@ -283,7 +286,7 @@ export abstract class Runner<
       this.implemented.services = implementedServices;
     }
 
-    if (this.#protocol.gateway != null) {
+    if (this.#protocol.gateway?.http != null) {
       const applyMiddleware = (route?: string) => (mw: string) => {
         const middleware = this.get<unknown>(this.implementation, mw);
         if (middleware == null) {
@@ -292,15 +295,15 @@ export abstract class Runner<
         return middleware;
       };
 
-      const routes: Implemented.Gateway['routes'] = [];
+      const routes: Implemented.HTTP['routes'] = [];
 
       await Promise.all(
-        Object.entries(this.#protocol.gateway.routes)
+        Object.entries(this.#protocol.gateway.http.routes)
           .filter(([alias]) => !alias.startsWith('#'))
           .map(async ([alias, route]) => {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const [_, method, url] = alias.split(/^(GET|POST|PUT|PATCH|DELETE)\s/);
-            if (typeof route === 'string') {
+            if (route.alias != null) {
               routes.push({
                 method: method as Implemented.Method,
                 url,
@@ -328,6 +331,7 @@ export abstract class Runner<
               routes.push({
                 method: method as Implemented.Method,
                 url,
+                middlewares: route.middlewares?.map(applyMiddleware(alias)),
                 action: {
                   meta: contract['x-meta'] ?? {},
                   headers: headers != null ? await this.#ajv.compileAsync({
@@ -341,7 +345,6 @@ export abstract class Runner<
                   }),
                   execute,
                   executePath: route.execute,
-                  middlewares: route.middlewares?.map(applyMiddleware(alias)),
                 },
               });
               return;
@@ -353,43 +356,52 @@ export abstract class Runner<
           }),
       );
 
-      this.implemented.gateway = {
-        middlewares: this.#protocol.gateway.middlewares?.map(applyMiddleware()) ?? [],
+      this.implemented.gateway = this.implemented.gateway ?? {};
+      this.implemented.gateway.http = {
+        middlewares: this.#protocol.gateway.http.middlewares?.map(applyMiddleware()) ?? [],
         routes,
       };
     }
 
     if (this.#protocol.cron != null) {
-      this.implemented.cron = {
+      const implemented: Implemented.Cron = {
         timezone: this.#protocol.cron.timezone,
-        disabled: this.#protocol.cron.disabled,
-        jobs: this.#protocol.cron.jobs.map<Declarated.Job>((job) => {
+        jobs: {},
+      };
+
+      Object.entries(this.#protocol.cron.jobs)
+        .filter(([name]) => !name.startsWith('#'))
+        .forEach(([name, job]) => {
           const execute = this.get<unknown>(this.implementation, job.execute);
           if (execute == null) {
-            this.#err(`cannot retrieve implementation by path '${job.execute}' in cron '${job.name}.execute'`);
+            this.#err(`cannot retrieve implementation by path '${job.execute}' in cron '${name}.execute'`);
           }
 
           const result: Implemented.Job = {
-            name: job.name,
             pattern: job.pattern,
             execute,
-            disabled: job.disabled,
           };
 
-          if (job.executeOnComplete != null) {
-            const executeOnComplete = this
-              .get<unknown>(this.implementation, job.executeOnComplete[0]);
-
-            if (executeOnComplete == null) {
-              this.#err(`cannot retrieve implementation by path '${job.executeOnComplete}' in cron '${job.name}.executeOnComplete'`);
+          if (job.onComplete != null) {
+            const onComplete = this.get<unknown>(this.implementation, job.onComplete);
+            if (onComplete == null) {
+              this.#err(`cannot retrieve implementation by path '${job.onComplete}' in cron '${name}.onComplete'`);
             }
-
-            result.executeOnComplete = executeOnComplete;
+            result.onComplete = onComplete;
           }
 
-          return result;
-        }),
-      };
+          if (job.onError != null) {
+            const onError = this.get<unknown>(this.implementation, job.onError);
+            if (onError == null) {
+              this.#err(`cannot retrieve implementation by path '${job.onError}' in cron '${name}.onError'`);
+            }
+            result.onError = onError;
+          }
+
+          implemented.jobs[name] = result;
+        });
+
+      this.implemented.cron = implemented;
     }
   }
 

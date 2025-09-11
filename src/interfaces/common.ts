@@ -8,9 +8,9 @@ export interface Project {
   name: string;
   version: string;
   ext: string;
-  dir: {
-    protocol: string;
-    contracts: string;
+  dir?: {
+    protocol?: string;
+    contracts?: string;
   };
 }
 
@@ -51,7 +51,9 @@ export interface Span {
   };
 }
 
-export interface Context {
+export interface Context<P = unknown, A = unknown> {
+  params: P;
+  adapters: A;
   logger: LoggerInstance;
   getLogger(module: string, props?: GenericObject): LoggerInstance;
   span: Span | null;

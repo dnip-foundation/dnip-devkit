@@ -14,4 +14,4 @@
 
 # Distributed Node Interface Protocol
 
-It's a devkit (docs in progress)
+Documentation: [https://dnip-labs.github.io/docs](https://dnip-labs.github.io/docs)

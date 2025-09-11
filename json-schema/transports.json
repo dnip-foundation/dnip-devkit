@@ -3,14 +3,5 @@
   "$id": "transports.json",
 
   "type": "array",
-  "items": {
-    "type": "string",
-    "enum": [
-      "nats",
-      "redis",
-      "mqtt",
-      "amqp",
-      "kafka"
-    ]
-  }
+  "items": { "type": "string" }
 }

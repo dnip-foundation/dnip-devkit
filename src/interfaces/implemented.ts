@@ -1,42 +1,57 @@
 export interface Protocol {
-    cron?:     Cron;
-    gateway?:  Gateway;
-    services?: { [key: string]: Service };
+    cron?:       Cron;
+    gateway?:    Gateway;
+    processors?: { [key: string]: Processor };
+    services?:   { [key: string]: Service };
 }
 
 export interface Cron {
-    disabled?: boolean;
-    jobs:      Job[];
-    timezone?: string;
+    jobs:     { [key: string]: Job };
+    timezone: string;
 }
 
 export interface Job {
-    disabled?:          boolean;
-    execute:            any;
-    executeOnComplete?: any;
-    name:               string;
-    pattern:            string;
+    execute:     any;
+    onComplete?: any;
+    onError?:    any;
+    pattern:     string;
 }
 
 export interface Gateway {
+    events?: { [key: string]: Event };
+    http?:   HTTP;
+}
+
+export interface Event {
+    execute:  any;
+    headers:  any;
+    input:    any;
+    meta:     { [key: string]: any };
+    onError?: any;
+    output:   any;
+    [property: string]: any;
+}
+
+export interface HTTP {
     middlewares: any[];
     routes:      Route[];
 }
 
 export interface Route {
-    action?: Action | string;
-    method:  Method;
-    url:     string;
+    action:       Action;
+    method:       Method;
+    middlewares?: any[];
+    url:          string;
 }
 
 export interface Action {
-    execute:     any;
-    executePath: string;
-    headers:     any;
-    input:       any;
-    meta:        { [key: string]: any };
-    middlewares: any;
-    output:      any;
+    alias?:       string;
+    execute?:     any;
+    executePath?: string;
+    headers?:     any;
+    input?:       any;
+    meta?:        { [key: string]: any };
+    output?:      any;
 }
 
 export enum Method {
@@ -47,16 +62,28 @@ export enum Method {
     Put = "PUT",
 }
 
+export interface Processor {
+    execute:     any;
+    headers:     any;
+    input:       any;
+    meta:        { [key: string]: any };
+    onComplete?: any;
+    onError?:    any;
+    output:      any;
+    [property: string]: any;
+}
+
 export interface Service {
-    actions:    { [key: string]: Action };
-    transports: Transport[];
+    actions:    { [key: string]: Contract };
+    transports: string[];
     version:    number;
 }
 
-export enum Transport {
-    AMQP = "amqp",
-    Kafka = "kafka",
-    Mqtt = "mqtt",
-    Nats = "nats",
-    Redis = "redis",
+export interface Contract {
+    execute:     any;
+    executePath: string;
+    headers:     any;
+    input:       any;
+    meta:        { [key: string]: any };
+    output:      any;
 }
