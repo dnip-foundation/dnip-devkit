@@ -119,7 +119,7 @@ export abstract class Runner<
 
   protected createContext<P, A>(
     params: P,
-    adapters: A,
+    ports: A,
     config: GenericObject,
     logger: Context<P, A>['logger'],
     getLogger: Context<P, A>['getLogger'],
@@ -127,6 +127,8 @@ export abstract class Runner<
     meta: GenericObject = {},
   ): Context<P, A> {
     return {
+      params,
+      ports,
       logger: {
         fatal: logger.fatal,
         error: logger.error,
@@ -139,8 +141,6 @@ export abstract class Runner<
       span,
       meta,
       config,
-      params,
-      adapters,
     };
   }
 

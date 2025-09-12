@@ -53,7 +53,7 @@ export interface Span {
 
 export interface Context<P = unknown, A = unknown> {
   params: P;
-  adapters: A;
+  ports: A;
   logger: LoggerInstance;
   getLogger(module: string, props?: GenericObject): LoggerInstance;
   span: Span | null;
