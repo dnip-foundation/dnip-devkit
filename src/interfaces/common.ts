@@ -55,7 +55,7 @@ export interface Context<T = unknown, P = unknown> {
   call: <O = unknown, I = GenericObject>(
     serviceName: string,
     params: I,
-    context?: GenericObject,
+    options?: GenericObject,
   ) => Promise<O>;
   params: T;
   ports: P;
