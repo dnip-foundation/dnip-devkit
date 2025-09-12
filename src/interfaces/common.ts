@@ -51,9 +51,14 @@ export interface Span {
   };
 }
 
-export interface Context<P = unknown, A = unknown> {
-  params: P;
-  ports: A;
+export interface Context<T = unknown, P = unknown> {
+  call: <O = unknown, I = GenericObject>(
+    serviceName: string,
+    params: I,
+    context?: GenericObject,
+  ) => Promise<O>;
+  params: T;
+  ports: P;
   logger: LoggerInstance;
   getLogger(module: string, props?: GenericObject): LoggerInstance;
   span: Span | null;
@@ -69,7 +74,7 @@ export interface Broker {
   start: () => Promise<void>;
   stop: () => Promise<void>;
   getLogger: (name: string, props?: GenericObject) => LoggerInstance;
-  call<T, P>(actionName: string, params?: P, opts?: GenericObject): Promise<T>;
+  call<O, I>(actionName: string, params?: I, opts?: GenericObject): Promise<O>;
 
   tracer: {
     startSpan: (...args: any) => Span;

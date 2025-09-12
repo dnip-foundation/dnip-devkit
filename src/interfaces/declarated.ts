@@ -1,8 +1,9 @@
 export interface Protocol {
-    cron?:       Cron;
-    gateway?:    Gateway;
-    processors?: { [key: string]: Processor };
-    services?:   { [key: string]: Service };
+    cron?:         Cron;
+    dependencies?: string[];
+    gateway?:      Gateway;
+    processors?:   { [key: string]: Processor };
+    services?:     { [key: string]: Service };
 }
 
 export interface Cron {

@@ -117,16 +117,18 @@ export abstract class Runner<
     this.#implementation = undefined!;
   }
 
-  protected createContext<P, A>(
-    params: P,
-    ports: A,
+  protected createContext<T, P>(
+    call: Context<T, P>['call'],
+    params: T,
+    ports: P,
     config: GenericObject,
-    logger: Context<P, A>['logger'],
-    getLogger: Context<P, A>['getLogger'],
-    span: Context<P, A>['span'] | null,
+    logger: Context<T, P>['logger'],
+    getLogger: Context<T, P>['getLogger'],
+    span: Context<T, P>['span'] | null,
     meta: GenericObject = {},
-  ): Context<P, A> {
+  ): Context<T, P> {
     return {
+      call,
       params,
       ports,
       logger: {
@@ -226,6 +228,7 @@ export abstract class Runner<
   async #implement(broker: B) {
     this.implementation = this.#implementation(broker.adapters);
     const validateContract = ajv.getSchema('contract.json');
+    this.implemented.dependencies = this.#protocol.dependencies;
 
     if (this.#protocol.services != null) {
       const implementedServices: { [k: string]: Implemented.Service } = {};
