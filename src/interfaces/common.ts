@@ -94,24 +94,36 @@ export interface Config {
     namespace: string;
     name: string;
     version: string;
+    probe: number;
   };
-  transports: {
-    amqp: string;
-  }
 
-  log_level: string;
-  probe: number;
+  logger: {
+    level: string;
+  };
+
   domain: GenericObject;
 
-  gateway?: DeepPartial<{
-    ip?: string;
-    port?: number;
-    requestTimeout?: number;
-    cors?: {
-      methods?: string[];
-      origin?: string;
+  services?: {
+    transports?: {
+      [k: string]: any;
     };
-  }>
+  };
+
+  gateway?: DeepPartial<{
+    http?: {
+      ip?: string;
+      port?: number;
+      requestTimeout?: number;
+      [k: string]: any;
+    };
+    events?: {
+      [k: string]: any;
+    }
+  }>;
+
+  adapters: {
+    [k: string]: any;
+  };
 
   [name: string]: any;
 }
