@@ -117,18 +117,36 @@ export abstract class Runner<
     this.#implementation = undefined!;
   }
 
-  protected createContext<T, P>(
-    call: Context<T, P>['call'],
-    params: T,
-    ports: P,
-    config: GenericObject,
-    logger: Context<T, P>['logger'],
-    getLogger: Context<T, P>['getLogger'],
-    span: Context<T, P>['span'] | null,
-    meta: GenericObject = {},
-  ): Context<T, P> {
+  protected createContext<T, P>({
+    methods: {
+      call,
+      getLogger,
+    },
+    props: {
+      params,
+      ports,
+      config,
+      logger,
+      span,
+      meta = {},
+    },
+  }: {
+    methods: {
+      call: Context<T, P>['call'],
+      getLogger: Context<T, P>['getLogger'],
+    },
+    props: {
+      params: T,
+      ports: P,
+      config: GenericObject,
+      logger: Context<T, P>['logger'],
+      span: Context<T, P>['span'] | null,
+      meta: GenericObject,
+    },
+  }): Context<T, P> {
     return {
       call,
+      getLogger: (module, props) => getLogger(module, props),
       params,
       ports,
       logger: {
@@ -139,7 +157,6 @@ export abstract class Runner<
         debug: logger.debug,
         trace: logger.trace,
       },
-      getLogger: (module, props) => getLogger(module, props),
       span,
       meta,
       config,

@@ -57,10 +57,11 @@ export interface Context<T = unknown, P = unknown> {
     params: I,
     options?: GenericObject,
   ) => Promise<O>;
+  getLogger(module: string, props?: GenericObject): LoggerInstance;
+
   params: T;
   ports: P;
   logger: LoggerInstance;
-  getLogger(module: string, props?: GenericObject): LoggerInstance;
   span: Span | null;
   meta: GenericObject;
   config: GenericObject;
